@@ -22,7 +22,7 @@ class TelegramBotController extends Controller
 
     public function __construct()
     {
-        $this->telegram = new Api(env('TELEGRAM_TOKEN'));
+        $this->telegram = new Api(env('TELEGRAM_BOT_TOKEN'));
     }
 
     public function webhook()
