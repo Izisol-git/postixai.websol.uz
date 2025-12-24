@@ -22,7 +22,9 @@ class User extends Authenticatable
         'name',
         'telegram_id',
         'oferta_read',
-        // 'role_id'
+        'role_id',
+        'email',
+        'password'
     ];
 
     /**
@@ -51,8 +53,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserPhone::class);
     }
-    
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
 
-    // Helper methods
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
     
 }
