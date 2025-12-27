@@ -79,10 +79,10 @@ body {
 }
 
 .form-control { 
-    background: #ffffff; 
-    color: var(--text); 
+    background:#ffffff; 
+    color:#000; 
     border-radius:10px; 
-    border:1px solid rgba(255,255,255,0.04); 
+    border:1px solid rgba(0,0,0,0.04); 
     height:46px; 
     padding:10px; 
 }
@@ -104,14 +104,14 @@ body {
     border-radius:10px; 
 }
 
-/* Logout button */
+/* Logout */
 .logout-btn {
-    background-color: #ef4444; /* qizil fon */
-    color: white;              /* matn oq */
-    border-radius: 8px;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
+    background:#ef4444;
+    color:white;
+    border-radius:8px;
+    border:none;
+    padding:6px 12px;
+    cursor:pointer;
 }
 
 /* Alerts */
@@ -119,7 +119,6 @@ body {
     border-radius:10px; 
 }
 
-/* Helper */
 .small-note { 
     color:var(--muted); 
     font-size:0.9rem; 
@@ -130,60 +129,64 @@ body {
 <body>
 <div class="container">
 
-  <!-- Top bar -->
-  <div class="topbar">
+<!-- Top bar -->
+<div class="topbar">
     <div class="title">
         <span style="font-weight:800; color:var(--yellow);">POSTIX AI</span>
         <span class="breadcrumbs">
-            <a href="{{ route('departments.index') }}" style="color:var(--muted); text-decoration:none;">Departments</a> → Tahrirlash
+            <a href="{{ route('departments.index') }}" style="color:var(--muted); text-decoration:none;">
+                Departments
+            </a> → Tahrirlash
         </span>
     </div>
 
     <div class="right-controls">
-        <form action="{{ route('logout') }}" method="POST" style="margin:0;">
+        <form action="{{ route('logout') }}" method="POST">
             @csrf
-            <button type="submit" class="logout-btn">Logout</button>
+            <button class="logout-btn">Logout</button>
         </form>
     </div>
-  </div>
+</div>
 
-  <!-- Card -->
-  <div class="card">
+<!-- Card -->
+<div class="card">
     <h3>Department tahrirlash</h3>
 
-    <!-- Success message -->
-    @if (session('success'))
-      <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-
-    <!-- Error messages -->
     @if ($errors->any())
-      <div class="alert alert-danger">
-        <ul class="mb-0">
-          @foreach ($errors->all() as $error)
-            <li>{{ $error }}</li>
-          @endforeach
-        </ul>
-      </div>
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
     @endif
 
-    <!-- Department edit form -->
     <form action="{{ route('departments.update', $department->id) }}" method="POST" class="mt-3">
-      @csrf
-      @method('PUT')
+        @csrf
+        @method('PUT')
 
-      <div class="mb-3">
-        <label class="form-label">Nomi</label>
-        <input type="text" name="name" value="{{ old('name', $department->name) }}" class="form-control" placeholder="Department nomi" required>
-        <div class="small-note">Masalan: Marketing, Sales, Support — qisqa va tushunarli nom kiriting.</div>
-      </div>
+        <div class="mb-3">
+            <label class="form-label">Nomi</label>
+            <input
+                type="text"
+                name="name"
+                value="{{ old('name', $department->name) }}"
+                class="form-control"
+                placeholder="Department nomi"
+                required
+            >
+            <div class="small-note">
+                Masalan: Marketing, Sales, Support — qisqa va tushunarli nom kiriting.
+            </div>
+        </div>
 
-      <div class="d-flex gap-2 justify-content-end mt-4">
-        <a href="{{ route('departments.index') }}" class="btn-cancel">Bekor qilish</a>
-        <button type="submit" class="btn-save">Saqlash</button>
-      </div>
+        <div class="d-flex gap-2 justify-content-end mt-4">
+            <a href="{{ route('departments.index') }}" class="btn-cancel">Bekor qilish</a>
+            <button type="submit" class="btn-save">Saqlash</button>
+        </div>
     </form>
-  </div>
+</div>
 
 </div>
 </body>

@@ -7,6 +7,10 @@ use App\Application\Services\TelegramAuthService;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
+use App\Models\MessageGroup;
+use App\Jobs\CleanupScheduledJob;
+use App\Jobs\RefreshGroupStatusJob;
+use Illuminate\Http\RedirectResponse;
 
 class TelegramController extends Controller
 {
@@ -90,4 +94,31 @@ class TelegramController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
     }
+    public function cancel(MessageGroup $group): RedirectResponse
+    {
+        // (ixtiyoriy) permission check
+        // abort_if(auth()->user()->role?->name !== 'superadmin', 403);
+
+        // Job dispatch
+        CleanupScheduledJob::dispatch($group->id)
+            ->onQueue('telegram');
+
+        return redirect()
+            ->back()
+            ->with('success', "Operatsiya #{$group->id} bekor qilish jarayoniga yuborildi.");
+    }
+
+    /**
+     * Operatsiyani yangilash (REFRESH)
+     */
+    public function refresh(MessageGroup $group): RedirectResponse
+    {
+        RefreshGroupStatusJob::dispatch($group->id)
+            ->onQueue('telegram');
+
+        return redirect()
+            ->back()
+            ->with('success', "Operatsiya #{$group->id} yangilash jarayoniga yuborildi.");
+    }
+
 }

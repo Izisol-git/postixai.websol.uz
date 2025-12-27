@@ -297,6 +297,90 @@
             background: rgba(255, 255, 255, 0.05);
             color: var(--text);
         }
+
+        /* --- Confirm modal styles (minimal, in-project look) --- */
+        #confirmOverlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+            background: rgba(1, 6, 23, 0.6);
+            padding: 20px;
+        }
+
+        #confirmBox {
+            width: 100%;
+            max-width: 560px;
+            background: var(--card);
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+            color: var(--text);
+        }
+
+        .confirm-title {
+            font-weight: 800;
+            color: var(--yellow);
+            margin-bottom: 6px;
+            font-size: 1.05rem;
+        }
+
+        .confirm-desc {
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        .confirm-input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            height: 44px;
+            margin-top: 6px;
+            margin-bottom: 6px;
+            color: #071427;
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .modal-btn-cancel {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .modal-btn-continue {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+        }
+
+        .modal-btn-final {
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 800;
+        }
+
+        .modal-btn-final[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
@@ -322,7 +406,26 @@
 
         <!-- Department header -->
         <div class="card">
-            <h3>{{ $department->name }} — Batafsil</h3>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">{{ $department->name }} — Batafsil</h3>
+
+                @if (auth()->check() && auth()->user()->role?->name === 'superadmin')
+                    <div class="d-flex gap-2 align-items-center">
+                        <!-- Tahrirlash -->
+                        <a href="{{ route('departments.edit', $department->id) }}"
+                            class="btn btn-sm btn-outline-warning">
+                            ✏️ Tahrirlash
+                        </a>
+
+                        <!-- O‘chirish (kechikish bilan - still requires typing exact name) -->
+                        <button type="button" class="btn btn-sm btn-outline-danger js-confirm-action"
+                            data-action="{{ route('departments.destroy', $department->id) }}" data-method="DELETE"
+                            data-verb="Bo‘limni o‘chirish" data-require-name="{{ $department->name }}">
+                            🗑 O‘chirish
+                        </button>
+                    </div>
+                @endif
+            </div>
 
             <div class="stats">
                 <div class="stat">
@@ -339,10 +442,11 @@
                 </div>
                 <div class="stat">
                     <h4>{{ $telegramMessagesTotal ?? 0 }}</h4>
-                    <p>Habarlar soni</p>
+                    <p>Xabarlar soni</p>
                 </div>
             </div>
         </div>
+
 
         <!-- Users List with Delete, Show, Ban User, and Phone Ban Checkbox -->
         <div class="users-compact">
@@ -372,12 +476,15 @@
                         <div class="left" style="display:flex; align-items:center; gap:12px;">
                             <div class="user-name">{{ $user->name ?? '—' }}</div>
                             <div class="user-telegram">({{ $user->telegram_id ?? '—' }})</div>
+                            <div class="user-role">({{ $user->role->name ?? '—' }})</div>
                         </div>
+
 
                         <div style="min-width:360px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                             <select class="form-select-sm phone-select" data-user-id="{{ $user->id }}">
                                 @foreach ($user->phones as $phone)
-                                    <option value="{{ $phone->id }}" {{ $phone->is_active ? 'selected' : '' }}>
+                                    <option value="{{ $phone->id }}" {{ $phone->is_active ? 'selected' : '' }}
+                                        data-phone-banned="{{ $phone->ban && $phone->ban->active ? '1' : '0' }}">
                                         {{ $phone->phone }}
                                     </option>
                                 @endforeach
@@ -400,9 +507,12 @@
                                 {{ $userBanned ? 'User Banned' : 'Ban User' }}
                             </button>
 
-                            <button type="button" class="btn btn-sm"
+                            <!-- User delete still requires typing exact name -->
+                            <button type="button" class="btn btn-sm js-confirm-action"
                                 style="background:#ef4444; color:#fff; padding:4px 8px; font-size:11px; border-radius:6px; border:none;"
-                                onclick="deleteUser({{ $user->id }})">
+                                data-action="{{ route('users.destroy', $user->id) }}" data-method="DELETE"
+                                data-verb="Foydalanuvchini o‘chirish"
+                                data-require-name="{{ $user->name ?? $user->id }}">
                                 Delete
                             </button>
                         </div>
@@ -437,6 +547,8 @@
                         'scheduled' => ['label' => 'scheduled', 'color' => '#facc15'],
                         'failed' => ['label' => 'failed', 'color' => '#ef4444'],
                     ];
+
+                    // note: no data-require-name for cancel (3rd step removed)
                 @endphp
 
                 <div class="mg-card">
@@ -446,14 +558,24 @@
                             <div class="mg-meta">
                                 {{ optional($group->phone->user)->name ?? '—' }}
                                 ({{ optional($group->phone)->phone ?? '—' }})
+
                             </div>
                         </div>
 
                         <div style="display:flex; gap:8px;">
-                            <a href="#" class="btn-refresh"
-                                onclick="return onRefresh(event, {{ $gid }})">Refresh</a>
-                            <a href="#" class="btn-cancel"
-                                onclick="return onCancel(event, {{ $gid }})">Cancel</a>
+                            <!-- Refresh now uses modal and will POST to refresh route -->
+                            <button class="btn btn-outline-info js-confirm-action" data-action="{{ route('message-groups.refresh', $group->id) }}" data-method="POST"
+                                data-text="Siz “Operatsiya #{{ $group->id }}” holatini yangilamoqchisiz. Davom etishni xohlaysizmi?">
+                                Refresh
+                            </button>
+
+                            <!-- Cancel now uses modal but NO exact-name requirement (3rd step removed) -->
+                            <button type="button" class="btn-cancel js-confirm-action"
+                                data-action="{{ route('message-groups.cancel', $gid) }}" data-method="POST"
+                                data-verb="Operatsiyani bekor qilish"
+                                data-text="Siz “Operatsiya #{{ $gid }}” ga oid amalni bajarishni boshlamoqchisiz. Davom etishni xohlaysizmi?">
+                                Cancel
+                            </button>
                         </div>
                     </div>
 
@@ -564,12 +686,10 @@
         </div>
 
     </div>
-    <div id="toast-container" style="
-    position:fixed;
-    top:20px;
-    right:20px;
-    z-index:9999;
-"></div>
+
+    <!-- Toast container (single) -->
+    <div id="toast-container" style="position:fixed; top:20px; right:20px; z-index:9999;"></div>
+
     @if (session('success'))
         <script>
             document.addEventListener('DOMContentLoaded', function() {
@@ -586,10 +706,44 @@
         </script>
     @endif
 
-
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- Confirm modal (single, reused for all delete/cancel/refresh actions) -->
+    <div id="confirmOverlay" aria-hidden="true">
+        <div id="confirmBox" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+            <div class="confirm-title" id="confirmTitle">Tasdiqlash</div>
+            <div class="confirm-desc" id="confirmDesc">Siz amaliyotni bajarishni xohlaysizmi?</div>
+
+            <!-- Step 1 -->
+            <div id="confirmStep1">
+                <div class="confirm-desc" id="confirmStep1Text"></div>
+                <div class="confirm-actions" style="margin-top:8px;">
+                    <button type="button" class="modal-btn-cancel" id="confirmStep1Cancel">Bekor</button>
+                    <button type="button" class="modal-btn-continue" id="confirmStep1Continue">Davom etish</button>
+                </div>
+            </div>
+
+            <!-- Step 2 (optional exact name for user/department deletes) -->
+            <div id="confirmStep2" style="display:none; margin-top:10px;">
+                <div style="font-weight:700; margin-bottom:6px;" id="confirmStep2Title">Iltimos, tasdiqlang</div>
+                <div class="confirm-desc" id="confirmStep2Desc">Quyidagi maydonga aniq nomni kiriting:</div>
+
+                <input id="confirmInput" class="confirm-input" type="text" placeholder="Nomni aniq kiriting"
+                    aria-label="Tasdiqlash nomi" />
+                <div class="confirm-example small-note" id="confirmExample">Masalan: <strong>Operatsiya #1</strong>
+                </div>
+
+                <div class="confirm-actions" style="margin-top:8px;">
+                    <button type="button" class="modal-btn-cancel" id="confirmStep2Back">Ortga</button>
+                    <button type="button" class="modal-btn-final" id="confirmStep2Final" disabled>Ha,
+                        tasdiqlayman</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // preserve existing helpers (toggleBan etc.)
         function toggleBan(button) {
             const isCurrentlyBanned = button.textContent.includes('Banned');
             const type = button.getAttribute('data-type');
@@ -651,6 +805,7 @@
                     }
                 });
         }
+
         (function ensureToastContainer() {
             if (!document.getElementById('toast-container')) {
                 const c = document.createElement('div');
@@ -706,123 +861,173 @@
 
                 const phoneId = selectedOption.value;
                 const isPhoneBanned = selectedOption.getAttribute('data-phone-banned') === '1';
-                const userBanned = userBtn.textContent.includes('Banned');
+                const userBanned = userBtn && userBtn.textContent.includes('Banned');
 
-                phoneCheckbox.setAttribute('data-id', phoneId);
-                phoneCheckbox.checked = isPhoneBanned;
-
-                if (userBanned) {
-                    phoneCheckbox.disabled = true;
-                } else {
-                    phoneCheckbox.disabled = false;
+                if (phoneCheckbox) {
+                    phoneCheckbox.setAttribute('data-id', phoneId);
+                    phoneCheckbox.checked = isPhoneBanned;
+                    phoneCheckbox.disabled = !!userBanned;
                 }
             });
         });
 
-        function deleteUser(userId) {
-            showConfirmModal('Bu foydalanuvchini o‘chirib tashlamoqchimisiz?', () => {
-                const tokenMeta = document.querySelector('meta[name="csrf-token"]');
-                const csrf = tokenMeta ? tokenMeta.getAttribute('content') : null;
+        // Centralized modal logic (supports .js-confirm-action or [data-confirm])
+        (function() {
+            const overlay = document.getElementById('confirmOverlay');
+            const step1 = document.getElementById('confirmStep1');
+            const step1Text = document.getElementById('confirmStep1Text');
+            const step1Cancel = document.getElementById('confirmStep1Cancel');
+            const step1Continue = document.getElementById('confirmStep1Continue');
 
-                fetch(`/users/${userId}`, {
-                        method: 'DELETE',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Accept': 'application/json',
-                            ...(csrf ? {
-                                'X-CSRF-TOKEN': csrf
-                            } : {})
-                        }
-                    })
-                    .then(async response => {
-                        const contentType = response.headers.get('content-type') || '';
-                        if (!response.ok) {
-                            const text = contentType.includes('application/json') ? await response.json()
-                                .catch(() => null) : await response.text().catch(() => null);
-                            const msg = (text && text.message) ? text.message : (typeof text === 'string' &&
-                                text.length ? text : `Server error ${response.status}`);
-                            throw new Error(msg);
-                        }
-                        if (contentType.includes('application/json')) return response.json();
-                        const txt = await response.text().catch(() => null);
-                        return {
-                            success: true,
-                            message: txt || 'OK'
-                        };
-                    })
-                    .then(data => {
-                        if (data && data.success) {
-                            // remove DOM safely
-                            const userLine = document.querySelector(`.user-line[data-user-id="${userId}"]`);
-                            if (userLine) userLine.remove();
-                            // toast: deletion info in corner (red)
-                            showToast(data.message || 'Foydalanuvchi o‘chirildi', 'error');
-                        } else {
-                            showToast((data && data.message) || 'Xatolik yuz berdi', 'error');
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        showToast(err.message || 'Server bilan bog‘lanishda xato', 'error');
-                    });
+            const step2 = document.getElementById('confirmStep2');
+            const confirmInput = document.getElementById('confirmInput');
+            const confirmExample = document.getElementById('confirmExample');
+            const step2Back = document.getElementById('confirmStep2Back');
+            const step2Final = document.getElementById('confirmStep2Final');
+
+            let activeConfig = null;
+            const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content') || '';
+
+            function openConfirm(config) {
+                activeConfig = Object.assign({
+                    action: '#',
+                    method: 'POST',
+                    verb: 'Tasdiqlash',
+                    requireName: '',
+                    text: '' // optional full text
+                }, config || {});
+
+                // Priority: explicit text (data-text) -> if absent, use requireName or verb
+                const targetText = activeConfig.text && activeConfig.text.trim()
+                    ? activeConfig.text
+                    : (activeConfig.requireName || activeConfig.verb || 'bu amal');
+
+                step1Text.textContent = `Siz “${ targetText }” ga oid amalni bajarishni boshlamoqchisiz. Davom etishni xohlaysizmi?`;
+
+                if (activeConfig.requireName) {
+                    confirmExample.innerHTML = `Masalan: <strong>${ activeConfig.requireName }</strong>`;
+                } else {
+                    confirmExample.innerHTML = '';
+                }
+
+                // show step1
+                step2.style.display = 'none';
+                step1.style.display = 'block';
+                overlay.style.display = 'flex';
+                overlay.setAttribute('aria-hidden', 'false');
+                confirmInput.value = '';
+                step2Final.disabled = true;
+                setTimeout(() => step1Continue.focus(), 60);
+            }
+
+            function closeConfirm() {
+                overlay.style.display = 'none';
+                overlay.setAttribute('aria-hidden', 'true');
+                activeConfig = null;
+                confirmInput.value = '';
+            }
+
+            function doSubmit() {
+                if (!activeConfig) return;
+                const action = activeConfig.action;
+                const method = (activeConfig.method || 'POST').toUpperCase();
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = action;
+                form.style.display = 'none';
+
+                const tokenInput = document.createElement('input');
+                tokenInput.type = 'hidden';
+                tokenInput.name = '_token';
+                tokenInput.value = csrf;
+                form.appendChild(tokenInput);
+
+                if (method !== 'POST') {
+                    const methodInput = document.createElement('input');
+                    methodInput.type = 'hidden';
+                    methodInput.name = '_method';
+                    methodInput.value = method;
+                    form.appendChild(methodInput);
+                }
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+
+            // Step 1 handlers
+            step1Cancel.addEventListener('click', () => closeConfirm());
+            step1Continue.addEventListener('click', () => {
+                if (activeConfig && activeConfig.requireName) {
+                    // show step2 only if requireName set (user/department deletes)
+                    step1.style.display = 'none';
+                    step2.style.display = 'block';
+                    confirmInput.value = '';
+                    confirmInput.focus();
+                    step2Final.disabled = true;
+                } else {
+                    // submit right away (message-group cancel & refresh)
+                    doSubmit();
+                    closeConfirm();
+                }
             });
-        }
 
-        function confirmDelete(message, onConfirm) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.style.padding = '12px 18px';
-            toast.style.borderRadius = '8px';
-            toast.style.marginTop = '8px';
-            toast.style.color = '#fff';
-            toast.style.background = '#facc15';
-            toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-            toast.style.maxWidth = '300px';
-            toast.style.opacity = '0';
-            toast.style.transition = 'all 0.3s ease';
-            toast.innerHTML = `
-        ${message}
-        <div style="margin-top:8px; text-align:right;">
-            <button id="confirm-yes" style="margin-right:6px; background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:6px;">Yes</button>
-            <button id="confirm-no" style="background:#64748b; color:white; border:none; padding:4px 10px; border-radius:6px;">No</button>
-        </div>
-        `;
-            container.appendChild(toast);
-            requestAnimationFrame(() => {
-                toast.style.opacity = '1';
+            // Step 2 handlers
+            step2Back.addEventListener('click', () => {
+                step2.style.display = 'none';
+                step1.style.display = 'block';
+                step1Continue.focus();
             });
 
-            toast.querySelector('#confirm-yes').addEventListener('click', () => {
-                onConfirm();
-                toast.remove();
+            confirmInput.addEventListener('input', () => {
+                if (!activeConfig) return;
+                step2Final.disabled = (confirmInput.value !== (activeConfig.requireName || ''));
             });
-            toast.querySelector('#confirm-no').addEventListener('click', () => toast.remove());
 
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 8000); // 8s auto hide
-        }
+            step2Final.addEventListener('click', () => {
+                if (!activeConfig) return;
+                if (activeConfig.requireName && confirmInput.value !== activeConfig.requireName) {
+                    showToast('Kiritilgan nom mos kelmadi', 'error');
+                    return;
+                }
+                doSubmit();
+                closeConfirm();
+            });
 
+            // overlay click / ESC
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeConfirm();
+            });
+            window.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && overlay.style.display === 'flex') closeConfirm();
+            });
 
-        function toggleUsersList() {
-            const list = document.getElementById('usersList');
-            list.style.display = (list.style.display === 'none' ? 'block' : 'none');
-        }
+            // Attach handler for both `.js-confirm-action` and `[data-confirm]` (legacy)
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.js-confirm-action, [data-confirm]');
+                if (!btn) return;
+                e.preventDefault();
 
-        function onRefresh(e, id) {
-            e.preventDefault();
-            console.log('Refresh funksiyasi: Group #' + id);
-            return false;
-        }
+                const action = btn.getAttribute('data-action') || btn.getAttribute('href') || '#';
+                const method = (btn.getAttribute('data-method') || 'POST').toUpperCase();
+                const verb = btn.getAttribute('data-verb') || (method === 'DELETE' ? 'O\'chirish' : 'Tasdiqlash');
+                const requireName = (btn.getAttribute('data-require-name') || '').trim();
+                const text = (btn.getAttribute('data-text') || '').trim();
 
-        function onCancel(e, id) {
-            e.preventDefault();
-            if (!confirm('Bu operatsiyani bekor qilmoqchimisiz?')) return false;
-            console.log('Cancel funksiyasi: Group #' + id);
-            return false;
-        }
+                openConfirm({
+                    action: action,
+                    method: method,
+                    verb: verb,
+                    requireName: requireName,
+                    text: text
+                });
+            });
 
+            // expose openConfirm if needed
+            window.openConfirm = openConfirm;
+        })();
+
+        // Simple toast
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             if (!container) return console.warn('Toast container yo‘q');
@@ -857,60 +1062,8 @@
             }, 3000);
         }
 
-        function showConfirmModal(message, onConfirm) {
-            // overlay
-            const overlay = document.createElement('div');
-            overlay.style.position = 'fixed';
-            overlay.style.inset = '0';
-            overlay.style.background = 'rgba(0,0,0,0.45)';
-            overlay.style.display = 'flex';
-            overlay.style.alignItems = 'center';
-            overlay.style.justifyContent = 'center';
-            overlay.style.zIndex = '10000';
-
-            // modal
-            const box = document.createElement('div');
-            box.style.background = '#0f2233';
-            box.style.color = '#e7f4ff';
-            box.style.padding = '18px';
-            box.style.borderRadius = '10px';
-            box.style.width = 'min(94%,420px)';
-            box.style.boxShadow = '0 10px 30px rgba(0,0,0,0.6)';
-            box.innerHTML = `
-        <div style="font-weight:700; margin-bottom:8px;">Tasdiqlash</div>
-        <div style="margin-bottom:14px; color:var(--muted, #9fb7dd);">${message}</div>
-        <div style="text-align:right;">
-            <button id="confirm-no" style="margin-right:8px; background:#64748b; color:white; border:none; padding:8px 12px; border-radius:8px;">Bekor</button>
-            <button id="confirm-yes" style="background:#ef4444; color:white; border:none; padding:8px 12px; border-radius:8px;">O'chirish</button>
-        </div>`;
-
-            overlay.appendChild(box);
-            document.body.appendChild(overlay);
-
-            // handlers
-            box.querySelector('#confirm-no').addEventListener('click', () => overlay.remove());
-            box.querySelector('#confirm-yes').addEventListener('click', () => {
-                try {
-                    onConfirm();
-                } catch (e) {
-                    console.error(e);
-                }
-                overlay.remove();
-            });
-
-            // close on ESC
-            function onKey(e) {
-                if (e.key === 'Escape') {
-                    overlay.remove();
-                    document.removeEventListener('keydown', onKey);
-                }
-            }
-            document.addEventListener('keydown', onKey);
-        }
-
-
+        // Peer filter init (unchanged)
         (function() {
-            // debounce helper
             function debounce(fn, wait) {
                 let t;
                 return function(...args) {
@@ -919,7 +1072,6 @@
                 };
             }
 
-            // Initialize all peer lists (each mg-card will have its own)
             function initPeerLists() {
                 document.querySelectorAll('.mg-card').forEach(card => {
                     const search = card.querySelector('.peer-search');
@@ -931,32 +1083,19 @@
 
                     const rows = Array.from(list.querySelectorAll('.peer-row'));
 
-                    // Filtering logic
                     const applyFilter = (query = '', failedOnly = false) => {
                         const q = query.trim().toLowerCase();
-                        let visible = 0;
                         rows.forEach(row => {
-                            const peer = row.dataset.peer.toLowerCase();
+                            const peer = (row.dataset.peer || '').toLowerCase();
                             const hasFailed = parseInt(row.dataset.failed || '0') > 0;
                             const matchesQuery = q === '' || peer.includes(q);
                             const matchesFailed = !failedOnly || hasFailed;
-                            if (matchesQuery && matchesFailed) {
-                                row.style.display = 'flex';
-                                visible++;
-                            } else {
-                                row.style.display = 'none';
-                            }
+                            row.style.display = (matchesQuery && matchesFailed) ? 'flex' : 'none';
                         });
-
-                        // optional: if too few visible, show a tiny note (accessible)
-                        if (visible === 0 && list.dataset.emptyShown !== '1') {
-                            // you could add a "no results" row here if desired
-                            list.dataset.emptyShown = '1';
-                        }
                     };
 
                     const debouncedFilter = debounce((e) => {
-                        applyFilter(e.target.value, failedBtn.classList.contains('active'));
+                        applyFilter(e.target.value, failedBtn && failedBtn.classList.contains('active'));
                     }, 160);
 
                     if (search) {
@@ -966,15 +1105,8 @@
                     if (failedBtn) {
                         failedBtn.addEventListener('click', () => {
                             failedBtn.classList.toggle('active');
-                            if (failedBtn.classList.contains('active')) {
-                                failedBtn.style.opacity = '1';
-                                failedBtn.textContent = 'Failed only ✓';
-                            } else {
-                                failedBtn.style.opacity = '1';
-                                failedBtn.textContent = 'Failed only';
-                            }
-                            applyFilter(search ? search.value : '', failedBtn.classList.contains(
-                                'active'));
+                            failedBtn.textContent = failedBtn.classList.contains('active') ? 'Failed only ✓' : 'Failed only';
+                            applyFilter(search ? search.value : '', failedBtn.classList.contains('active'));
                         });
                     }
 
@@ -986,20 +1118,38 @@
                         });
                     }
 
-                    // initial run
                     applyFilter('', false);
-
-                    // Performance note: if rows.length > 1000 consider server-side search or virtualization.
                 });
             }
 
-            // run on DOMContentLoaded
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initPeerLists);
             } else {
                 initPeerLists();
             }
         })();
+
+        // toggleUsersList kept as before
+        function toggleUsersList() {
+            const list = document.getElementById('usersList');
+            if (!list) return;
+            list.style.display = (list.style.display === 'none' || !list.style.display) ? 'block' : 'none';
+        }
+
+        // deleteUser wrapper kept for compatibility (uses modal)
+        function deleteUser(userId) {
+            const btn = document.querySelector(`.user-line[data-user-id="${userId}"] .js-confirm-action[data-action]`);
+            if (btn) {
+                btn.click();
+                return;
+            }
+            openConfirm && openConfirm({
+                action: `/users/${userId}`,
+                method: 'DELETE',
+                verb: 'Foydalanuvchini o‘chirish',
+                requireName: ''
+            });
+        }
     </script>
 
 </body>

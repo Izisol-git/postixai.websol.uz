@@ -16,6 +16,10 @@ class DepartmentController extends Controller
 {
     public function index(Request $request)
     {
+        $user=$request->user();
+        if(!in_array($user->role->name,['superadmin'])){
+            return redirect()->route('departments.show',$user->department_id);
+        }
         // Range: all, year, month, week, day
         $range = $request->get('range', 'all');
 
@@ -119,11 +123,10 @@ class DepartmentController extends Controller
 
         $department->update($data);
 
-        return redirect()->route('departments.index');
+        return redirect()->route('departments.show', $department->id)->with('success', 'Department updated successfully');
     }
     public function destroy(Department $department)
     {
-        dd(123);
         $department->delete();
         return redirect()->route('departments.index');
     }
