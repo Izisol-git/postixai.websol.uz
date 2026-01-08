@@ -182,7 +182,7 @@ body {
         </div>
 
         <div class="d-flex gap-2 justify-content-end mt-4">
-            <a href="{{ route('departments.index') }}" class="btn-cancel">Bekor qilish</a>
+            <a href="{{ route('departments.show', $department->id) }}" class="btn-cancel">Bekor qilish</a>
             <button type="submit" class="btn-save">Saqlash</button>
         </div>
     </form>

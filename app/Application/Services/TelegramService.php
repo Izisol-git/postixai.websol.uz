@@ -32,11 +32,11 @@ class TelegramService
                 Keyboard::button([
                     'text' => '📱 Telefon Raqam Qoshish',
                 ]),
-                Keyboard::button('Telefonlarim'),
+                Keyboard::button('📱 Telefonlarim'),
             ])
             ->row([
                 Keyboard::button('Cataloglar'),
-                Keyboard::button('Yuborilgan xabarlar natijasi'),
+                Keyboard::button('Yuborilgan xabarlar tarixi'),
             ])
             ->row([
                 Keyboard::button('Qollanma'),
@@ -47,10 +47,61 @@ class TelegramService
                 Keyboard::button('Habar yuborish'),
             ]);
         }
+
         
 
         return $keyboard;
     }
+    public function buildSendCatalogInlineKeyboard($user)
+{
+    $keyboard = Keyboard::make()->inline();
+
+    /** -------------------------
+     *  1️⃣ USER O‘Z CATALOG'LARI
+     * ------------------------- */
+    $myCatalogs = Catalog::where('user_id', $user->id)->get();
+
+    foreach ($myCatalogs as $catalog) {
+        $keyboard->row([
+            Keyboard::inlineButton([
+                'text' => $catalog->title . ' (' . $user->name . ')',
+                'callback_data' => 'catalog_start_' . $catalog->id
+            ])
+        ]);
+    }
+
+    /** --------------------------------
+     *  2️⃣ DEPARTMENT USERLARI CATALOGI
+     * -------------------------------- */
+    if ($user->department) {
+        foreach ($user->department->users as $depUser) {
+
+            // o‘zini yana qayta qo‘shmaslik
+            if ($depUser->id === $user->id) {
+                continue;
+            }
+
+            foreach ($depUser->catalogs as $catalog) {
+                $keyboard->row([
+                    Keyboard::inlineButton([
+                        'text' => $catalog->title . ' (' . $depUser->name . ')',
+                        'callback_data' => 'catalog_start_' . $catalog->id
+                    ])
+                ]);
+            }
+        }
+    }
+
+    /** 🔙 Cancel */
+    $keyboard->row([
+        Keyboard::inlineButton([
+            'text' => '❌ Bekor qilish',
+            'callback_data' => 'cancel_catalog'
+        ])
+    ]);
+
+    return $keyboard;
+}
     public function buildCatalogKeyboard(int $userId, int $page = 1)
     {
         // Faqat user_id bo'yicha filtr
@@ -204,7 +255,7 @@ class TelegramService
         // ❌ Cancel
         $keyboard->row([
             Keyboard::inlineButton([
-                'text' => '❌ Tanlashni bekor qilish',
+                'text' => 'Menyuga qaytish',
                 'callback_data' => 'cancel_auth',
             ])
         ]);
@@ -245,7 +296,7 @@ class TelegramService
         // Yopish tugmasi
         $keyboard->row([
             Keyboard::inlineButton([
-                'text' => '❌ Yopish',
+                'text' => 'Menyuga qaytish',
                 'callback_data' => 'cancel_auth'
             ])
         ]);
@@ -275,6 +326,7 @@ class TelegramService
         $text .= "📌 Guruh ID: {$group->id}\n";
         $text .= "🕒 Boshlangan: " . optional($messages->min('send_at'))->format('Y-m-d H:i') . "\n";
         $text .= "⏰ Tugashi: " . optional($messages->max('send_at'))->format('Y-m-d H:i') . "\n\n";
+        $text .= "⏰ Last sent at: " . optional($messages->where('status', 'sent')->max('updated_at'))->format('Y-m-d H:i') . "\n\n";
 
         $text .= "📝 Message:\n";
         $text .= $messages->first()->message_text . "\n\n";
@@ -313,7 +365,7 @@ class TelegramService
 
         // Doimiy menu tugmalari
         $replyKeyboard->row([
-            Keyboard::button("Yuborilgan xabarlar natijasi"),
+            Keyboard::button("Yuborilgan xabarlar tarixi"),
             Keyboard::button("Cataloglar")
         ])->row([
             Keyboard::button("Menyu")
@@ -391,7 +443,7 @@ class TelegramService
         return (new Keyboard)->inline()
             ->row([
                 Keyboard::inlineButton([
-                    'text' => '❌ Tanlashni bekor qilish',
+                    'text' => 'Menyuga qaytish',
                     'callback_data' => 'cancel_auth'
                 ])
             ]);
@@ -452,5 +504,11 @@ class TelegramService
 
             return null;
         }
+    }
+
+
+    public function manualText(): string
+    {
+        return file_get_contents(resource_path('texts/manual.md'));
     }
 }

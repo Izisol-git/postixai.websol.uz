@@ -13,4 +13,10 @@ class Department extends Model
     {
         return $this->hasMany(User::class);
     }
+    // in User.php, UserPhone.php, Department.php
+public function ban()
+{
+    return $this->morphOne(\App\Models\Ban::class, 'bannable');
+}
+
 }

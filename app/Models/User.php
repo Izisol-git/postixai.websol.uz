@@ -69,4 +69,12 @@ class User extends Authenticatable
     {
         return $this->morphOne(Ban::class, 'bannable');
     }
+    public function catalogs()
+    {
+        return $this->hasMany(Catalog::class);
+    }
+    public function images()
+    {
+        return $this->morphMany(Image::class, 'imageable');
+    }
 }

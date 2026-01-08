@@ -11,7 +11,13 @@ class Ban extends Model
         'bannable_id',
         'reason',
         'active',
-        'until'
+        'until',
+        'starts_at',
+    ];
+    protected $casts = [
+        'active'    => 'boolean',
+        'until'     => 'datetime',
+        'starts_at' => 'datetime',
     ];
     public function bannable()
     {

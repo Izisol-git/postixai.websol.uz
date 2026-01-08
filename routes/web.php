@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\View\BanController;
 use App\Http\Controllers\View\AuthController;
 use App\Http\Controllers\View\UserController;
 use App\Http\Controllers\View\TelegramController;
@@ -47,5 +48,12 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/message-groups/{group}/refresh', [TelegramController::class, 'refresh'])
             ->name('message-groups.refresh');
+
+        Route::post('/admin/ban-unban', [BanController::class, 'banUnban'])
+            ->name('admin.ban-unban');
+        Route::get(
+            '/departments/{department}/dashboard',
+            [DepartmentController::class, 'dashboard']
+        )->name('departments.dashboard');
     });
 });

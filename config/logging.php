@@ -52,6 +52,20 @@ return [
 
     'channels' => [
 
+        'dedicated_exceptions' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/dedicated-exceptions.log'),
+            'level' => 'debug',
+            'tap' => [App\Logging\CustomizeFormatter::class],
+        ],
+        'dedicated_exceptions_console' => [
+            'driver' => 'monolog',
+            'handler' => Monolog\Handler\StreamHandler::class,
+            'with' => ['stream' => 'php://stderr'],
+            'level' => 'debug',
+            'tap' => [App\Logging\CustomizeFormatter::class],
+        ],
+
         'stack' => [
             'driver' => 'stack',
             'channels' => explode(',', (string) env('LOG_STACK', 'single')),
@@ -93,6 +107,7 @@ return [
             ],
             'processors' => [PsrLogMessageProcessor::class],
         ],
+        
 
         'stderr' => [
             'driver' => 'monolog',
