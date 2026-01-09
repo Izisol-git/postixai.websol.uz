@@ -48,17 +48,15 @@ class MainController extends Controller
             ->count();
 
         /** LAST ACTIVE USERS */
-        $lastActiveUsers = DB::table('users')
+        $lastActiveUsers = User::with('avatar')
+            ->where('department_id', $department->id)
+            ->whereHas('phones.messageGroups.messages')
+            ->select('users.id', 'users.name')
+            ->selectRaw('MAX(telegram_messages.sent_at) as last_active')
+            ->selectRaw('COUNT(telegram_messages.id) as ops_count')
             ->join('user_phones', 'user_phones.user_id', '=', 'users.id')
             ->join('message_groups', 'message_groups.user_phone_id', '=', 'user_phones.id')
             ->join('telegram_messages', 'telegram_messages.message_group_id', '=', 'message_groups.id')
-            ->where('users.department_id', $department->id)
-            ->select(
-                'users.id',
-                'users.name',
-                DB::raw('MAX(telegram_messages.sent_at) as last_active'),
-                DB::raw('COUNT(telegram_messages.id) as ops_count')
-            )
             ->groupBy('users.id', 'users.name')
             ->orderByDesc('last_active')
             ->limit(5)
@@ -245,28 +243,28 @@ class MainController extends Controller
     }
     public function users(Request $request, Department $department)
     {
+        $q = $request->input('q');
 
-        $users = User::with([
-                'phones.ban',
-                'ban',
-                'role'
-            ])
-            ->where('department_id', $department->id)
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+        $usersQuery = User::with(['avatar', 'phones.ban', 'ban', 'role'])
+            ->where('department_id', $department->id);
 
-        return view('user.index', compact(
-            'department',
-            'users'
-        ));
+        if ($q) {
+            $usersQuery->where(function ($w) use ($q) {
+                $w->where('users.name', 'like', "%{$q}%")
+                  ->orWhere('users.email', 'like', "%{$q}%")
+                  ->orWhere('users.telegram_id', 'like', "%{$q}%");
+            });
+        }
+
+        $users = $usersQuery->orderByDesc('created_at')->paginate(15)->withQueryString();
+
+        return view('user.index', compact('department', 'users', 'q'));
     }
     public function operations(Request $request, Department $department)
     {
         // Only superadmin allowed in your app? replicate your check if needed.
         $user = $request->user();
-        if (!in_array($user->role->name, ['superadmin'])) {
-            return redirect()->route('departments.dashboard', $user->department_id);
-        }
+        
 
         // auto-activate scheduled ban as in show()
         if ($department->ban && $department->ban->active == 0 && $department->ban->starts_at && $department->ban->starts_at < now()) {
@@ -421,5 +419,4 @@ class MainController extends Controller
             'to'
         ));
     }
-
 }

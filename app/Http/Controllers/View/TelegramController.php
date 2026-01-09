@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers\View;
 
-use App\Http\Controllers\Controller;
-use App\Application\Services\TelegramAuthService;
-use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Validation\ValidationException;
 use App\Models\MessageGroup;
+use Illuminate\Http\Request;
 use App\Jobs\CleanupScheduledJob;
 use App\Jobs\RefreshGroupStatusJob;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
+use App\Application\Services\TelegramAuthService;
 
 class TelegramController extends Controller
 {
@@ -43,7 +44,6 @@ class TelegramController extends Controller
     public function sendPhone(Request $request)
     {
         $request->validate(['phone' => 'required|string']);
-
         try {
             $user = $this->resolveUserFromRequest($request);
 
@@ -107,7 +107,6 @@ class TelegramController extends Controller
             ->back()
             ->with('success', "Operatsiya #{$group->id} bekor qilish jarayoniga yuborildi.");
     }
-
     /**
      * Operatsiyani yangilash (REFRESH)
      */
@@ -119,6 +118,17 @@ class TelegramController extends Controller
         return redirect()
             ->back()
             ->with('success', "Operatsiya #{$group->id} yangilash jarayoniga yuborildi.");
+    }
+    public function logout(Request $request): RedirectResponse
+    {
+        
+        $user = $this->resolveUserFromRequest($request);
+
+        $this->authService->logout($user, $request->input('phone'));
+
+        return redirect()
+            ->route('telegram.login')
+            ->with('success', 'Siz muvaffaqiyatli Telegramdan chiqdingiz.');
     }
 
 }

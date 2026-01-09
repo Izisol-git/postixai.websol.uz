@@ -7,6 +7,7 @@ use App\Http\Controllers\View\AuthController;
 use App\Http\Controllers\View\UserController;
 use App\Http\Controllers\View\TelegramController;
 use App\Http\Controllers\View\DepartmentController;
+use App\Http\Controllers\View\Admin\UserController as AdminUserController;
 
 require __DIR__ . '/methods/web.php';
 
@@ -41,20 +42,26 @@ Route::middleware('auth')->group(function () {
         Route::get('phones/', [TelegramController::class, 'showLoginForm'])->name('telegram.login');
         Route::post('phones/send', [TelegramController::class, 'sendPhone'])->name('telegram.sendPhone');
         Route::post('phones/verify', [TelegramController::class, 'sendCode'])->name('telegram.sendCode');
-        Route::post('/message-groups/{group}/cancel', [TelegramController::class, 'cancel'])
-            ->name('message-groups.cancel');
-
-        Route::post('/message-groups/{group}/refresh', [TelegramController::class, 'refresh'])
-            ->name('message-groups.refresh');
+        Route::post('/message-groups/{group}/cancel', [TelegramController::class, 'cancel'])->name('message-groups.cancel');
+        Route::post('/telegram/logout', [TelegramController::class, 'logout'])->name('telegram.logout');
+        Route::post('/message-groups/{group}/refresh', [TelegramController::class, 'refresh'])->name('message-groups.refresh');
 
         Route::post('/admin/ban-unban', [BanController::class, 'banUnban'])
             ->name('admin.ban-unban');
 
-        Route::get('/profile', [UserController::class, 'profile'])->name('profile');
-        Route::prefix('admin')->namespace('App\Http\Controllers\View\Admin')->group(function () {
+
+        
+        // Route::get('/profile', [UserController::class, 'profile'])->name('profile');
+        // Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
+        Route::prefix('/admin')->namespace('App\Http\Controllers\View\Admin')->group(function () {
             Route::get('/departments/{department}', [MainController::class, 'index'])->name('departments.dashboard');
             Route::get('/departments/{department}/users', [MainController::class, 'users'])->name('departments.users');
             Route::get('/departments/{department}/operations', [MainController::class, 'operations'])->name('departments.operations');
+
+            //Users
+            Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('admin.users.show');
+            Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
+            Route::post('/users/{user}/destroy', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
         });
 
     });

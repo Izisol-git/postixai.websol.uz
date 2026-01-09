@@ -10,10 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
-        /* =========================
-   THEME VARIABLES (dark by default)
-   Switch by toggling body.light
-   ========================= */
+
         :root {
             --bg: #071427;
             --card: #0f2233;
@@ -178,122 +175,151 @@
         }
 
         .profile-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 999px;
-            background: linear-gradient(180deg, var(--accent), var(--accent-2));
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            color: #fff;
+            background: var(--bs-secondary-bg);
+            color: var(--bs-body-color);
+            font-size: 14px;
         }
     </style>
     <style>
-/* ===== Theme variables (keep in sync with your other vars) ===== */
-:root{
-  --bg:#071427;
-  --card:#0f2233;
-  --card-2:#122a3f;
-  --card-3:#163650;
-  --text:#eaf3ff;
-  --muted:#9fb7dd;
-  --accent:#3b82f6;
-  --accent2:#facc15;
+        /* ===== Theme variables (keep in sync with your other vars) ===== */
+        :root {
+            --bg: #071427;
+            --card: #0f2233;
+            --card-2: #122a3f;
+            --card-3: #163650;
+            --text: #eaf3ff;
+            --muted: #9fb7dd;
+            --accent: #3b82f6;
+            --accent2: #facc15;
 
-  /* peer / inline defaults */
-  --peer-bg: rgba(255,255,255,0.02);
-  --peer-border: rgba(255,255,255,0.04);
-  --inline-bg: rgba(255,255,255,0.02);
-  --inline-border: rgba(255,255,255,0.04);
-  --chip-bg: rgba(255,255,255,0.02);
-}
+            /* peer / inline defaults */
+            --peer-bg: rgba(255, 255, 255, 0.02);
+            --peer-border: rgba(255, 255, 255, 0.04);
+            --inline-bg: rgba(255, 255, 255, 0.02);
+            --inline-border: rgba(255, 255, 255, 0.04);
+            --chip-bg: rgba(255, 255, 255, 0.02);
+        }
 
-/* LIGHT THEME overrides */
-body.light{
-  --bg: #f4f6fb;
-  --card: #ffffff;
-  --card-2: #f8fafc;
-  --card-3: #ffffff;
-  --text: #0b1220;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --accent2: #d97706;
+        /* LIGHT THEME overrides */
+        body.light {
+            --bg: #f4f6fb;
+            --card: #ffffff;
+            --card-2: #f8fafc;
+            --card-3: #ffffff;
+            --text: #0b1220;
+            --muted: #6b7280;
+            --accent: #2563eb;
+            --accent2: #d97706;
 
-  --peer-bg: rgba(11,17,32,0.03);
-  --peer-border: rgba(11,17,32,0.06);
-  --inline-bg: rgba(11,17,32,0.03);
-  --inline-border: rgba(11,17,32,0.06);
-  --chip-bg: rgba(11,17,32,0.03);
-}
+            --peer-bg: rgba(11, 17, 32, 0.03);
+            --peer-border: rgba(11, 17, 32, 0.06);
+            --inline-bg: rgba(11, 17, 32, 0.03);
+            --inline-border: rgba(11, 17, 32, 0.06);
+            --chip-bg: rgba(11, 17, 32, 0.03);
+        }
 
-/* ===== Elements that must adapt to theme ===== */
-.message-group {
-  background: var(--card-2) !important;
-  border: 1px solid rgba(255,255,255,0.04);
-  color: var(--text);
-}
+        /* ===== Elements that must adapt to theme ===== */
+        .message-group {
+            background: var(--card-2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text);
+        }
 
-/* message text panel */
-.message-text {
-  background: var(--card-3) !important;
-  color: var(--text) !important;
-  border-left: 4px solid var(--accent);
-}
+        /* message text panel */
+        .message-text {
+            background: var(--card-3) !important;
+            color: var(--text) !important;
+            border-left: 4px solid var(--accent);
+        }
 
-/* peer rows (was inline rgba) */
-.peer-row {
-  background: var(--peer-bg) !important;
-  border: 1px solid var(--peer-border) !important;
-  color: var(--text) !important;
-}
+        /* peer rows (was inline rgba) */
+        .peer-row {
+            background: var(--peer-bg) !important;
+            border: 1px solid var(--peer-border) !important;
+            color: var(--text) !important;
+        }
 
-/* override any inline styles that used rgba(...) to a theme-aware variable */
-*[style*="background:rgba(255,255,255,0.02)"],
-*[style*="background: rgba(255,255,255,0.02)"] {
-  background: var(--inline-bg) !important;
-  /* try to preserve border if present */
-  border-color: var(--inline-border) !important;
-  color: var(--text) !important;
-}
+        /* override any inline styles that used rgba(...) to a theme-aware variable */
+        *[style*="background:rgba(255,255,255,0.02)"],
+        *[style*="background: rgba(255,255,255,0.02)"] {
+            background: var(--inline-bg) !important;
+            /* try to preserve border if present */
+            border-color: var(--inline-border) !important;
+            color: var(--text) !important;
+        }
 
-/* also override other tiny inline backgrounds if present */
-*[style*="background:rgba(255,255,255,0.01)"],
-*[style*="background: rgba(255,255,255,0.01)"] {
-  background: var(--inline-bg) !important;
-  border-color: var(--inline-border) !important;
-  color: var(--text) !important;
-}
+        /* also override other tiny inline backgrounds if present */
+        *[style*="background:rgba(255,255,255,0.01)"],
+        *[style*="background: rgba(255,255,255,0.01)"] {
+            background: var(--inline-bg) !important;
+            border-color: var(--inline-border) !important;
+            color: var(--text) !important;
+        }
 
-/* status badges - keep color cues but ensure readable in light mode */
-.status-badge { color: #062; } /* fallback */
+        /* status badges - keep color cues but ensure readable in light mode */
+        .status-badge {
+            color: #062;
+        }
 
-.status-badge.status-sent { background: #bbf7d0; color: #064e3b; }
-.status-badge.status-failed { background: #fecaca; color: #7f1d1d; }
-.status-badge.status-canceled { background: #e9d5ff; color: #5b21b6; }
-.status-badge.status-scheduled { background: #fef3c7; color: #92400e; }
-.status-badge.status-pending { background: #dbeafe; color: #1e3a8a; }
+        /* fallback */
 
-/* small chips inside peer rows */
-.status-chip {
-  background: var(--chip-bg) !important;
-  color: var(--text) !important;
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-weight:700;
-}
+        .status-badge.status-sent {
+            background: #bbf7d0;
+            color: #064e3b;
+        }
 
-/* ensure text-muted adapts */
-.text-muted.small { color: var(--muted) !important; }
+        .status-badge.status-failed {
+            background: #fecaca;
+            color: #7f1d1d;
+        }
 
-/* scrollbar cosmetic */
-.peer-row::-webkit-scrollbar, .card::-webkit-scrollbar { height:6px; width:6px; }
-.peer-row::-webkit-scrollbar-thumb, .card::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius:6px; }
+        .status-badge.status-canceled {
+            background: #e9d5ff;
+            color: #5b21b6;
+        }
 
-/* safety: override any other inline color that hides text */
-*[style*="color:var(--text-disabled)"] { color: var(--text) !important; }
+        .status-badge.status-scheduled {
+            background: #fef3c7;
+            color: #92400e;
+        }
 
-</style>
+        .status-badge.status-pending {
+            background: #dbeafe;
+            color: #1e3a8a;
+        }
+
+        /* small chips inside peer rows */
+        .status-chip {
+            background: var(--chip-bg) !important;
+            color: var(--text) !important;
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-weight: 700;
+        }
+
+        /* ensure text-muted adapts */
+        .text-muted.small {
+            color: var(--muted) !important;
+        }
+
+        /* scrollbar cosmetic */
+        .peer-row::-webkit-scrollbar,
+        .card::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        .peer-row::-webkit-scrollbar-thumb,
+        .card::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+
+        /* safety: override any other inline color that hides text */
+        *[style*="color:var(--text-disabled)"] {
+            color: var(--text) !important;
+        }
+    </style>
 
 
 </head>
@@ -383,27 +409,52 @@ body.light{
                     <div class="dropdown">
                         <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2"
                             type="button" id="profileMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span
-                                class="profile-avatar">{{ strtoupper(substr(auth()->user()->name ?? (auth()->user()->username ?? 'U'), 0, 1)) }}</span>
-                            <span
-                                class="d-none d-md-inline">{{ auth()->user()->name ?? (auth()->user()->username ?? __('messages.layout.profile')) }}</span>
+                            {{-- Avatar --}}
+                            @if (auth()->user()->avatar)
+                                <img src="{{ asset('storage/' . auth()->user()->avatar->path) }}" alt="Avatar"
+                                    class="rounded-circle" style="width:28px;height:28px;object-fit:cover">
+                            @else
+                                <span
+                                    class="profile-avatar d-flex align-items-center justify-content-center rounded-circle"
+                                    style="width:28px;height:28px;font-weight:700;">
+                                    {{ strtoupper(mb_substr(auth()->user()->name ?? (auth()->user()->username ?? 'U'), 0, 1)) }}
+                                </span>
+                            @endif
+
+                            {{-- Name --}}
+                            <span class="d-none d-md-inline">
+                                {{ auth()->user()->name ?? (auth()->user()->username ?? __('messages.layout.profile')) }}
+                            </span>
                         </button>
+
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileMenuBtn">
-                            <li><a class="dropdown-item"
-                                    href="{{ route('profile') ?? '#' }}">{{ __('messages.layout.profile') }}</a></li>
-                            <li><a class="dropdown-item" href="">{{ __('messages.layout.settings') }}</a></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('admin.users.show', auth()->user()->id) }}">
+                                    {{ __('messages.layout.profile') }}
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    {{ __('messages.layout.settings') }}
+                                </a>
+                            </li>
+
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
+
                             <li>
-                                <form id="logoutForm" action="{{ route('logout') }}" method="POST" style="margin:0;">
+                                <form action="{{ route('logout') }}" method="POST" class="m-0">
                                     @csrf
-                                    <button type="submit"
-                                        class="dropdown-item text-danger">{{ __('messages.layout.logout') }}</button>
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        {{ __('messages.layout.logout') }}
+                                    </button>
                                 </form>
                             </li>
                         </ul>
                     </div>
+
 
                 </div>
             </div>
@@ -421,9 +472,9 @@ body.light{
 
     <script>
         /*
-                  Theme toggle: stores 'light'|'dark' in localStorage under key 'app_theme'
-                  Usage: body.classList.toggle('light', true) -> light theme
-                */
+                      Theme toggle: stores 'light'|'dark' in localStorage under key 'app_theme'
+                      Usage: body.classList.toggle('light', true) -> light theme
+                    */
         (function() {
             const THEME_KEY = 'app_theme';
             const body = document.body;

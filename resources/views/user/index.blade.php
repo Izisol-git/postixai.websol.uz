@@ -18,11 +18,15 @@
         </div>
 
         <div class="d-flex gap-2 align-items-center">
+            {{-- Server-side search form. Enter bosilganda serverga yuboradi --}}
+            <form method="GET" action="{{ route('departments.users', $department->id) }}" class="d-flex gap-2 align-items-center">
+                <input id="usersSearch" name="q" class="form-control form-control-sm" type="search" value="{{ $q ?? '' }}" placeholder="{{ __('messages.admin.search_users') ?? 'Search users...' }}" style="width:240px;">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('messages.admin.search') ?? 'Search' }}</button>
+            </form>
+
             <a href="{{ route('users.create') }}" class="btn btn-sm btn-success">
                 + {{ __('messages.admin.add_user') ?? 'Add user' }}
             </a>
-
-            
         </div>
     </div>
 
@@ -51,7 +55,6 @@
             <h5 class="mb-0">{{ __('messages.admin.users') }}</h5>
 
             <div class="d-flex gap-2 align-items-center">
-                <input id="usersSearch" class="form-control form-control-sm" type="search" placeholder="{{ __('messages.admin.search_users') ?? 'Search users...' }}" style="width:220px;">
                 <button class="btn btn-sm btn-outline-secondary" id="toggleAll">Toggle all</button>
             </div>
         </div>
@@ -60,18 +63,28 @@
             @foreach ($users as $user)
                 @php
                     $userBanned = $user->ban?->active ?? false;
-                    $activePhone = $user->phones->firstWhere('is_active', 1);
                 @endphp
 
                 <div class="user-line d-flex justify-content-between align-items-center p-2 mb-2" data-user-id="{{ $user->id }}" style="border-radius:8px; background:var(--card);">
                     <div style="display:flex; gap:12px; align-items:center; min-width:0;">
-                        <div style="width:40px; height:40px; border-radius:8px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">
-                            {{ strtoupper(substr($user->name ?? $user->username ?? 'U',0,1)) }}
+                        {{-- Avatar or initials --}}
+                        <div style="width:40px; height:40px; border-radius:8px; overflow:hidden; flex-shrink:0;">
+                            @if($user->avatar_url)
+                                <img src="{{ $user->avatar_url }}" alt="avatar" style="width:40px;height:40px;object-fit:cover;display:block;">
+                            @else
+                                <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6366f1,#22d3ee);color:#fff;font-weight:800;">
+                                    {{ $user->avatar_letter }}
+                                </div>
+                            @endif
                         </div>
+
                         <div style="min-width:0;">
-                            <div style="font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px;">{{ $user->name ?? '—' }}</div>
+                            <div class="user-name" style="font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px;">
+                                {{ $user->name ?? '—' }}
+                            </div>
                             <div class="text-muted small">
-                                {{ $user->telegram_id ? '@'.$user->telegram_id : __('messages.admin.no_telegram') }}
+                                {{ $user->email ? $user->email : '' }} •
+                                {{ $user->telegram_id ? $user->telegram_id : __('messages.admin.no_telegram') }}
                                 • {{ $user->role?->name ?? __('messages.admin.no_role') }}
                             </div>
                         </div>
@@ -93,7 +106,7 @@
                         </a>
 
                         {{-- Show --}}
-                        <a href="{{ route('users.show', $user->id) }}" class="btn btn-sm btn-primary">
+                        <a href="{{ route('admin.users.show', $user->id) }}" class="btn btn-sm btn-primary">
                             {{ __('messages.admin.details') ?? 'Details' }}
                         </a>
 
@@ -234,10 +247,8 @@ document.querySelectorAll('.phone-select').forEach(sel => {
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.success) {
                 showToast(data.message || '{{ __("messages.admin.error_phone_activate") ?? "Failed to activate phone" }}', 'error');
-                // TODO: optionally roll back selection (hard to determine previous)
             } else {
                 showToast(data.message || '{{ __("messages.admin.phone_activated") ?? "Phone activated" }}', 'success');
-                // update phone-banned attr on selected option if provided
                 const opt = orig.options[orig.selectedIndex];
                 if (opt && data.is_banned !== undefined) opt.setAttribute('data-phone-banned', data.is_banned ? '1' : '0');
             }
@@ -392,8 +403,11 @@ document.getElementById('toggleAll')?.addEventListener('click', function() {
     });
 });
 
-/* ---------- Simple client-side search (works on current page only) ---------- */
-document.getElementById('usersSearch')?.addEventListener('input', function() {
+/* ---------- Simple client-side search (instant, doesn't submit) ---------- */
+document.getElementById('usersSearch')?.addEventListener('input', function(e) {
+    // if user pressed Enter we want normal form submit; else instant filter
+    if (e.inputType === 'insertLineBreak') return;
+
     const q = this.value.trim().toLowerCase();
     const rows = document.querySelectorAll('#usersList .user-line');
     rows.forEach(r => {

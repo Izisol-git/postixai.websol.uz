@@ -73,8 +73,35 @@ class User extends Authenticatable
     {
         return $this->hasMany(Catalog::class);
     }
-    public function images()
+    public function avatar()
     {
-        return $this->morphMany(Image::class, 'imageable');
+        return $this->morphOne(Image::class, 'imageable');
     }
+    public function getAvatarUrlAttribute()
+    {
+        try {
+            $av = $this->avatar;
+
+            // agar morphMany bo'lsa, birinchi elementni oling
+            if ($av instanceof \Illuminate\Support\Collection) {
+                $av = $av->first();
+            }
+
+            if ($av && isset($av->path) && $av->path) {
+                return asset('storage/' . ltrim($av->path, '/'));
+            }
+        } catch (\Throwable $e) {
+            // ignore quietly
+        }
+
+        return null;
+    }
+
+    // First letter for initials fallback
+    public function getAvatarLetterAttribute()
+    {
+        $name = $this->name ?? $this->username ?? 'U';
+        return mb_strtoupper(mb_substr($name, 0, 1));
+    }
+    
 }

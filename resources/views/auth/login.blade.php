@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="uz">
+<html lang="{{ app()->getLocale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kirish</title>
+<title>{{ __('messages.login.title') }}</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -103,8 +103,8 @@
 
 <div class="login-card">
 
-    <div class="login-title">Xush kelibsiz</div>
-    <div class="login-sub">Hisobingizga kiring</div>
+    <div class="login-title">{{ __('messages.login.welcome') }}</div>
+    <div class="login-sub">{{ __('messages.login.subtitle') }}</div>
 
     @if ($errors->any())
         <div class="alert alert-danger mb-3">
@@ -120,31 +120,31 @@
         @csrf
 
         <div class="mb-3">
-            <label class="form-label">Email</label>
+            <label class="form-label">{{ __('messages.login.email') }}</label>
             <input type="email"
                    name="email"
                    value="{{ old('email') }}"
                    class="form-control"
-                   placeholder="you@example.com"
+                   placeholder="{{ __('messages.login.email_placeholder') }}"
                    required>
         </div>
 
         <div class="mb-4">
-            <label class="form-label">Parol</label>
+            <label class="form-label">{{ __('messages.login.password') }}</label>
             <input type="password"
                    name="password"
                    class="form-control"
-                   placeholder="••••••••"
+                   placeholder="{{ __('messages.login.password_placeholder') }}"
                    required>
         </div>
 
         <button type="submit" class="btn btn-login w-100">
-            Kirish
+            {{ __('messages.login.submit') }}
         </button>
     </form>
 
     <div class="footer-text">
-        Postix Ai
+        {{ __('messages.login.footer') }}
     </div>
 
 </div>

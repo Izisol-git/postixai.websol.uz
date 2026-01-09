@@ -10,7 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\UserStoreRequest;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\UserUpdateRequest;
 use App\Application\Services\UserService;
 
@@ -236,5 +238,52 @@ public function update(UserUpdateRequest $request, User $user)
         return redirect()
             ->route('departments.show', $user->department_id)
             ->with('success', 'User deleted successfully');
+    }
+
+
+
+    public function profile(Request $request)
+    {   
+        $user = $request->user()->load('avatar');
+        $department=$user->department;
+        return view('user.profile', compact('user','department'));
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'name'        => 'required|string|max:255',
+            'email'       => 'required|email|max:255|unique:users,email,' . $user->id,
+            'telegram_id' => 'nullable|string|max:255',
+            'password'    => 'nullable|min:6|confirmed',
+            'avatar'      => 'nullable|image|max:2048',
+        ]);
+
+        /* ===== Update basic fields ===== */
+        $user->name = $data['name'];
+        $user->email = $data['email'];
+        $user->telegram_id = $data['telegram_id'] ?? null;
+
+        if (!empty($data['password'])) {
+            $user->password = Hash::make($data['password']);
+        }
+
+        $user->save();
+
+        /* ===== Avatar upload ===== */
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+
+            if ($user->avatar) {
+                Storage::disk('public')->delete($user->avatar->path);
+                $user->avatar->update(['path' => $path]);
+            } else {
+                $user->avatar()->create(['path' => $path]);
+            }
+        }
+
+        return back()->with('success', __('Profile updated successfully'));
     }
 }
