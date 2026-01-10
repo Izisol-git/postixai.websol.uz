@@ -8,11 +8,18 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Jobs\VerifyPhoneWithUserJob;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Application\Services\LimitService;
+use Illuminate\Validation\ValidationException;
+use App\Application\Services\TelegramAuthService;
 
 class UserController extends Controller
 {
+    public function __construct(protected LimitService $limit,protected TelegramAuthService $authService)
+    {
+    }
     public function show(Request $request, $id)
 {
     $user = User::with([
@@ -156,9 +163,120 @@ class UserController extends Controller
         $departmentId = $user->department_id;
         $user->delete();
 
-        return redirect()->route('departments.users', $departmentId)
-            ->with('success', __('messages.users.user_deleted') ?? 'User deleted');
+        return redirect()->back()->with('success', __('messages.users.user_deleted') ?? 'User deleted');
     }
+
+    public function sendPhone(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$this->limit->canCreateUser($user)) {
+            return response()->json([
+                'message' => __('messages.telegram.limit')
+            ], 403);
+        }
+
+        $request->validate(['phone' => 'required|string']);
+        try {
+            $user = $this->resolveUserFromRequest($request);
+
+            $this->authService->login($user, $request->phone);
+            sleep(2);
+            return response()->json([
+                'status' => 'sms_sent',
+                'message' => __('messages.telegram.sms_sent'),
+                'user_id' => $user->id,
+            ], 200);
+        } catch (ValidationException $e) {
+            return response()->json(['status' => 'error', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+    public function storeUserWithTelegram(Request $request)
+    {
+        $data = $request->validate([
+            'phone' => 'required|string',
+            'code' => 'required|string',
+            'department_id' => 'nullable|integer|exists:departments,id',
+        ]);
+        
+
+        $departmentId = $data['department_id'] ?? optional($request->user())->department_id ?? null;
+
+        $existsInDepartment = UserPhone::where('phone', $data['phone'])
+            ->whereHas('user', function ($q) use ($departmentId) {
+                if ($departmentId === null) {
+                    $q->whereNull('department_id');
+                } else {
+                    $q->where('department_id', $departmentId);
+                }
+            })
+            ->exists();
+
+        if ($existsInDepartment) {
+            return redirect()->back()->with('error', __('messages.telegram.user_exists'));
+        }
+
+        VerifyPhoneWithUserJob::dispatch($data['phone'], $data['code'], null, $departmentId)
+            ->onQueue('telegram');
+
+
+        return redirect()->route('departments.users', $departmentId)->with('success', __('messages.telegram.started'));
+    }
+    public function newTelegramUsers()
+    {
+        $user=request()->user();
+        $department=$user->department;
+        return view('admin.telegram.telegram-login', compact('department'));
+    }
+        
     
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    protected function resolveUserFromRequest(Request $request): User
+    {
+        $userId = $request->input('user_id') ?? $request->query('user_id');
+        if ($userId) {
+            $user = User::find($userId);
+            if (! $user) {
+                abort(404, 'User topilmadi');
+            }
+            return $user;
+        }
+
+        $user = $request->user();
+        if (! $user) {
+            abort(401, 'Login talab qilinadi');
+        }
+        return $user;
+    }
 }

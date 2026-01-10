@@ -417,6 +417,7 @@
 
                 <div class="d-flex align-items-center gap-2">
                     <!-- Scheduled / Active info -->
+                    {{-- Blade fragment: department status/button + user button examples --}}
                     <span id="department-status-{{ $department->id }}" style="font-size:13px; color:#6b7280;">
                         @if ($isBannedActive)
                             🔒 Ban since: {{ $startsAt }}
@@ -425,10 +426,11 @@
                         @endif
                     </span>
 
-                    <!-- Ban / Unban button -->
+                    <!-- Ban / Unban button (no inline onclick - uses data-attributes) -->
                     <button id="department-btn-{{ $department->id }}"
-                        class="btn btn-sm {{ $isBannedActive ? 'btn-success' : 'btn-danger' }}"
-                        onclick="{{ $isBannedActive ? "doBanAction('department', {$department->id}, 'unban')" : "showBanModal('department', {$department->id}" . ($startsAt ?? false ? ", '" . $startsAt . "'" : '') . ')' }}">
+                        class="btn btn-sm department-ban-btn {{ $isBannedActive ? 'btn-success' : 'btn-danger' }}"
+                        data-type="department" data-id="{{ $department->id }}"
+                        data-banned="{{ $isBannedActive ? '1' : '0' }}">
                         {{ $isBannedActive ? '🔓 Unban' : '🛑 Ban' }}
                     </button>
 
@@ -520,20 +522,18 @@
                                 style="background:#3b82f6; color:#fff; padding:4px 8px; font-size:11px; border-radius:6px; text-decoration:none;">
                                 Batafsil
                             </a>
-                            @php
-                                $userBanned = $user->ban?->active ?? false;
-                            @endphp
+
+                            @php $userBanned = $user->ban?->active ?? false; @endphp
 
                             <button type="button" class="btn btn-sm ban-toggle-btn"
-                                id="user-ban-btn-{{ $user->id }}"
-                                style="background: {{ $userBanned ? '#ef4444' : '#6b7280' }}; color:#fff; padding:5px 12px; font-size:11px; border-radius:6px; border:none;"
-                                onclick="handleUserBanButton({{ $user->id }}, {{ $userBanned ? 'true' : 'false' }})">
+                                id="user-ban-btn-{{ $user->id }}" data-type="user" data-id="{{ $user->id }}"
+                                data-banned="{{ $userBanned ? '1' : '0' }}"
+                                style="background: {{ $userBanned ? '#ef4444' : '#6b7280' }}; color:#fff; padding:5px 12px; font-size:11px; border-radius:6px; border:none;">
                                 {{ $userBanned ? 'Unban' : 'Ban' }}
                             </button>
 
-
-
-
+                            <div id="toast-container" style="position:fixed; top:20px; right:20px; z-index:99999;">
+                            </div>
 
 
                             <!-- User delete still requires typing exact name -->
@@ -783,291 +783,475 @@
         </div>
     </div>
     <script>
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+/**
+ * Unified ban/unban + modal logic for this page
+ * - No inline onclicks required (data attributes used)
+ * - Works with controller JSON: { status: 'success', message: '...', data: { is_banned: true/false, starts_at: ... } }
+ * - Safe single-request locking per-button
+ */
 
-        /**
-         * doBanAction - universal AJAX call
-         */
-        async function doBanAction(type, id, explicitAction = null, startsAt = null) {
-            const payload = {
-                bannable_type: type,
-                bannable_id: id
-            };
-            if (explicitAction) payload.action = explicitAction;
-            if (startsAt) payload.starts_at = startsAt;
+(function () {
+    const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-            try {
-                const res = await fetch('/admin/ban-unban', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await res.json().catch(() => ({}));
-
-                if (!res.ok || !data.success) {
-                    showToast(data.message || 'Xatolik yuz berdi', 'error');
-                    return data;
-                }
-
-                // Update UI for department
-                const depBtn = document.getElementById(`${type}-btn-${id}`);
-                const depSched = document.getElementById(`${type}-schedule-${id}`);
-
-                if (depBtn) {
-                    if (data.is_banned) {
-                        depBtn.textContent = '🔓 Unban';
-                        depBtn.className = 'btn btn-sm btn-outline-success';
-                        depBtn.setAttribute('onclick', `doBanAction('${type}', ${id}, 'unban')`);
-                    } else {
-                        depBtn.textContent = '🛑 Ban';
-                        depBtn.className = 'btn btn-sm btn-outline-danger';
-                        depBtn.setAttribute('onclick', `showBanModal('${type}', ${id})`);
-                    }
-                }
-
-                if (depSched) {
-                    if (data.is_banned) {
-                        depSched.textContent = data.starts_at ? `Ban since: ${data.starts_at}` : 'Banned';
-                    } else {
-                        depSched.textContent = data.starts_at ? `Scheduled: ${data.starts_at}` : '';
-                    }
-                }
-
-                // Update UI for user-specific button (backwards compatible id)
-                const userBtn = document.getElementById(`user-ban-btn-${id}`);
-                if (userBtn && type === 'user') {
-                    if (data.is_banned) {
-                        userBtn.textContent = 'Unban';
-                        userBtn.style.background = '#ef4444';
-                        // set onclick to call handleUserBanButton with new state = true
-                        userBtn.setAttribute('onclick', `handleUserBanButton(${id}, true)`);
-                    } else {
-                        userBtn.textContent = 'Ban';
-                        userBtn.style.background = '#6b7280';
-                        userBtn.setAttribute('onclick', `handleUserBanButton(${id}, false)`);
-                    }
-                }
-
-                showToast(data.message || 'Success', 'success');
-                return data;
-            } catch (err) {
-                console.error(err);
-                showToast('Server bilan aloqa yo‘q', 'error');
-                return null;
-            }
+    /* --------- Toast helper (single global) ---------- */
+    function showToast(message, type = 'success') {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            Object.assign(container.style, { position:'fixed', top:'20px', right:'20px', zIndex: 99999 });
+            document.body.appendChild(container);
         }
+        const t = document.createElement('div');
+        t.innerHTML = message;
+        Object.assign(t.style, {
+            background: type === 'success' ? '#16a34a' : '#ef4444',
+            color: '#fff',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            marginTop: '8px',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.2)',
+            fontWeight: 700,
+            maxWidth: '360px',
+            opacity: '0',
+            transform: 'translateY(-6px)',
+            transition: 'opacity .18s, transform .18s'
+        });
+        container.appendChild(t);
+        requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
+        setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(-6px)'; setTimeout(()=>t.remove(),250); }, 3000);
+    }
 
-        /**
-         * showBanModal - creates a single-use modal (listeners not duplicated)
-         */
-        function showBanModal(type, id, startedAt = null) {
-            // remove old modal if any
-            document.querySelectorAll('.ban-modal-overlay').forEach(el => el.remove());
-
-            const overlay = document.createElement('div');
-            overlay.className = 'ban-modal-overlay';
-            Object.assign(overlay.style, {
-                position: 'fixed',
-                inset: '0',
-                background: 'rgba(0,0,0,0.6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 99999,
-                padding: '16px',
-                transition: 'opacity 0.3s ease-in-out'
-            });
-
-            const box = document.createElement('div');
-            Object.assign(box.style, {
-                width: '100%',
-                maxWidth: '520px',
-                background: 'linear-gradient(135deg, #1e3a8a, #0f172a)',
-                color: '#f0f9ff',
-                borderRadius: '16px',
-                padding: '24px',
-                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-                transform: 'scale(0.95)',
-                transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out',
-                opacity: 0
-            });
-
-            box.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-weight:800; font-size:18px; color: #ffffff;">Ban ${type.charAt(0).toUpperCase() + type.slice(1)}</div>
-            <button id="ban-close" style="background:transparent; border:none; color:#cbd5e1; font-size:20px; cursor:pointer; transition: color 0.2s;">✕</button>
-        </div>
-
-        <div style="color:#94a3b8; font-size:14px;">Choose start date & time (optional). "Ban Now" ignores this.</div>
-        <input id="ban-datetime-local" type="datetime-local" style="width:100%; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.15); background:#0f172a; color:#f0f9ff; font-size:14px; transition: border-color 0.2s;" />
-        <div id="ban-hint" style="color:#fde047; font-size:14px; min-height:14px;"></div>
-
-        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
-            <button id="ban-now" style="padding:10px 16px; border-radius:10px; border:none; background:#ef4444; color:#fff; cursor:pointer; font-weight:600; transition: background 0.2s, transform 0.1s;">Ban Now</button>
-            <button id="ban-schedule" style="padding:10px 16px; border-radius:10px; border:none; background:#facc15; color:#1e293b; cursor:pointer; font-weight:600; transition: background 0.2s, transform 0.1s;">Schedule</button>
-        </div>
-    `;
-
-            overlay.appendChild(box);
-            document.body.appendChild(overlay);
-
-            // Animate in
-            setTimeout(() => {
-                overlay.style.opacity = 1;
-                box.style.opacity = 1;
-                box.style.transform = 'scale(1)';
-            }, 10);
-
-            // default datetime local
-            const input = document.getElementById('ban-datetime-local');
-            if (startedAt) {
-                input.value = startedAt.replace(' ', 'T').slice(0, 16);
-            } else {
-                const now = new Date();
-                now.setMinutes(now.getMinutes() + 5 - (now.getMinutes() % 5));
-                const pad = n => String(n).padStart(2, '0');
-                input.value =
-                    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-            }
-
-            const hint = document.getElementById('ban-hint');
-            const closeBtn = document.getElementById('ban-close');
-            const btnNow = document.getElementById('ban-now');
-            const btnSchedule = document.getElementById('ban-schedule');
-
-            function closeModal() {
-                overlay.style.opacity = 0;
-                box.style.opacity = 0;
-                box.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    document.removeEventListener('keydown', onKey);
-                    overlay.remove();
-                }, 300);
-            }
-
-            function onKey(e) {
-                if (e.key === 'Escape') closeModal();
-            }
-            document.addEventListener('keydown', onKey);
-
-            overlay.addEventListener('click', e => {
-                if (e.target === overlay) closeModal();
-            });
-            closeBtn.addEventListener('click', closeModal);
-            closeBtn.addEventListener('mouseover', () => closeBtn.style.color = '#ffffff');
-            closeBtn.addEventListener('mouseout', () => closeBtn.style.color = '#cbd5e1');
-
-            input.addEventListener('focus', () => input.style.borderColor = 'rgba(255,255,255,0.3)');
-            input.addEventListener('blur', () => input.style.borderColor = 'rgba(255,255,255,0.15)');
-
-            // Button hover effects
-            btnNow.addEventListener('mouseover', () => btnNow.style.background = '#dc2626');
-            btnNow.addEventListener('mouseout', () => btnNow.style.background = '#ef4444');
-            btnNow.addEventListener('mousedown', () => btnNow.style.transform = 'scale(0.98)');
-            btnNow.addEventListener('mouseup', () => btnNow.style.transform = 'scale(1)');
-
-            btnSchedule.addEventListener('mouseover', () => btnSchedule.style.background = '#eab308');
-            btnSchedule.addEventListener('mouseout', () => btnSchedule.style.background = '#facc15');
-            btnSchedule.addEventListener('mousedown', () => btnSchedule.style.transform = 'scale(0.98)');
-            btnSchedule.addEventListener('mouseup', () => btnSchedule.style.transform = 'scale(1)');
-
-            // Ban Now
-            btnNow.addEventListener('click', () => {
-                btnNow.disabled = true;
-                doBanAction(type, id).then(() => closeModal()).finally(() => btnNow.disabled = false);
-            });
-
-            // Schedule
-            btnSchedule.addEventListener('click', () => {
-                const v = input.value;
-                if (!v) {
-                    hint.textContent = 'Iltimos sana va vaqtni tanlang';
-                    return;
-                }
-                const chosen = new Date(v);
-                if (isNaN(chosen.getTime())) {
-                    hint.textContent = 'Noto‘g‘ri format';
-                    return;
-                }
-                if (chosen.getTime() <= Date.now()) {
-                    hint.textContent = 'Iltimos kelajakdagi vaqtni tanlang';
-                    return;
-                }
-
-                const formatted = v.replace('T', ' ') + ':00';
-                btnSchedule.disabled = true;
-                doBanAction(type, id, null, formatted).then(data => {
-                    if (data?.success) {
-                        const sched = document.getElementById(`${type}-status-${id}`);
-                        if (sched) sched.textContent = `Scheduled: ${data.starts_at || formatted}`;
-                        showToast(data.message || 'Scheduled', 'success');
-                        closeModal();
-                    } else {
-                        hint.textContent = data?.message || 'Xatolik';
-                    }
-                }).finally(() => btnSchedule.disabled = false);
-            });
-        }
-
-        /**
-         * handleUserBanButton
-         * userBanned param is only initial hint; after request UI will be updated by doBanAction
-         */
-        function handleUserBanButton(userId, userBanned) {
-            const btn = document.getElementById(`user-ban-btn-${userId}`);
-            if (!btn) return;
-
+    /* --------- Small spinner helper --------- */
+    function setBtnLoading(btn, on) {
+        if (!btn) return;
+        if (on) {
+            btn.dataset._orig = btn.innerHTML;
+            btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite"></span>';
             btn.disabled = true;
-            if (userBanned) {
-                // request unban immediately
-                doBanAction('user', userId, 'unban').finally(() => btn.disabled = false);
-            } else {
-                // immediate ban for users (no schedule)
-                doBanAction('user', userId).finally(() => btn.disabled = false);
+            if (!document.getElementById('spin-style')) {
+                const s = document.createElement('style');
+                s.id = 'spin-style';
+                s.innerHTML = `@keyframes spin{to{transform:rotate(360deg)}}`;
+                document.head.appendChild(s);
+            }
+        } else {
+            btn.innerHTML = btn.dataset._orig || btn.innerHTML;
+            btn.disabled = false;
+            delete btn.dataset._orig;
+        }
+    }
+
+    /* --------- Core AJAX: /admin/ban-unban ---------- */
+    async function doBanAction(type, id, explicitAction = null, startsAt = null) {
+        const payload = { bannable_type: type, bannable_id: id };
+        if (explicitAction) payload.action = explicitAction;
+        if (startsAt) payload.starts_at = startsAt;
+
+        try {
+            const res = await fetch('/admin/ban-unban', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': CSRF,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            let json = {};
+            try { json = await res.json(); } catch (e) { json = {}; }
+
+            const ok = res.ok && (String(json.status).toLowerCase() === 'success' || json.success === true);
+
+            if (!ok) {
+                // Validation errors
+                if (json.errors) {
+                    const errs = [];
+                    Object.values(json.errors).forEach(arr => { if (Array.isArray(arr)) errs.push(...arr); });
+                    if (errs.length) {
+                        showToast(errs.join(', '), 'error');
+                        return { success: false, raw: json };
+                    }
+                }
+                showToast(json.message || 'Xatolik yuz berdi', 'error');
+                return { success: false, raw: json };
+            }
+
+            showToast(json.message || 'Success', 'success');
+            return { success: true, raw: json };
+        } catch (err) {
+            console.error('doBanAction error', err);
+            showToast('Server bilan aloqa yo‘q', 'error');
+            return { success: false, error: err };
+        }
+    }
+
+    /* --------- showBanModal (department scheduling) ---------- */
+    function showBanModal(type, id, startedAt = null) {
+        // Remove any existing modal to avoid duplicate listeners
+        document.querySelectorAll('.ban-modal-overlay').forEach(el => el.remove());
+
+        const overlay = document.createElement('div');
+        overlay.className = 'ban-modal-overlay';
+        Object.assign(overlay.style, {
+            position: 'fixed',
+            inset: '0',
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '16px',
+        });
+
+        const box = document.createElement('div');
+        Object.assign(box.style, {
+            width: '100%', maxWidth: '520px',
+            background: 'var(--card)', color: 'var(--text)',
+            borderRadius: '12px', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+            display: 'flex', flexDirection: 'column', gap: '12px'
+        });
+
+        box.innerHTML = `
+<div style="
+    background:linear-gradient(180deg, rgba(15,34,51,.95), rgba(7,20,39,.95));
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 20px 40px rgba(0,0,0,.45);
+    border:1px solid rgba(255,255,255,.06);
+">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:20px">🚫</span>
+            <strong style="font-size:16px;letter-spacing:.3px">
+                ${type.charAt(0).toUpperCase() + type.slice(1)} Ban
+            </strong>
+        </div>
+        <button id="ban-modal-close" style="
+            background:rgba(255,255,255,.06);
+            border:none;
+            color:var(--muted);
+            font-size:16px;
+            width:32px;
+            height:32px;
+            border-radius:8px;
+            cursor:pointer;
+        ">✕</button>
+    </div>
+
+    <!-- Description -->
+    <div style="
+        color:var(--muted);
+        font-size:13px;
+        line-height:1.5;
+        margin-bottom:12px
+    ">
+        📅 Sana tanlashingiz mumkin (ixtiyoriy).  
+        <br>
+        <strong style="color:#ef4444">Ban Now</strong> – darhol amal qiladi.
+    </div>
+
+    <!-- Input -->
+    <input id="ban-datetime-local" type="datetime-local" style="
+        width:100%;
+        padding:11px 12px;
+        border-radius:10px;
+        border:1px solid rgba(255,255,255,.1);
+        background:rgba(255,255,255,.03);
+        color:var(--text);
+        outline:none;
+        margin-bottom:6px
+    " />
+
+    <!-- Hint -->
+    <div id="ban-modal-hint" style="
+        color:#f59e0b;
+        font-size:12px;
+        min-height:18px;
+        margin-bottom:8px
+    "></div>
+
+    <!-- Actions -->
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button id="ban-now-btn" style="
+            background:#ef4444;
+            border:none;
+            color:white;
+            padding:8px 14px;
+            border-radius:10px;
+            font-size:14px;
+            cursor:pointer
+        ">
+            🚨 Ban Now
+        </button>
+
+        <button id="ban-schedule-btn" style="
+            background:#f59e0b;
+            border:none;
+            color:black;
+            padding:8px 14px;
+            border-radius:10px;
+            font-size:14px;
+            cursor:pointer
+        ">
+            ⏰ Schedule
+        </button>
+    </div>
+</div>
+`;
+
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        // initialize datetime (if provided, convert "YYYY-MM-DD HH:MM:SS" -> "YYYY-MM-DDTHH:MM")
+        const input = box.querySelector('#ban-datetime-local');
+        if (startedAt) {
+            input.value = startedAt.replace(' ', 'T').slice(0,16);
+        } else {
+            // default now rounded to next 5 minutes
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 5 - (now.getMinutes() % 5));
+            const pad = n => String(n).padStart(2,'0');
+            input.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        }
+
+        const hint = box.querySelector('#ban-modal-hint');
+        const closeBtn = box.querySelector('#ban-modal-close');
+        const btnNow = box.querySelector('#ban-now-btn');
+        const btnSchedule = box.querySelector('#ban-schedule-btn');
+
+        function close() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+
+        function onKey(e) { if (e.key === 'Escape') close(); }
+        document.addEventListener('keydown', onKey);
+
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        closeBtn.addEventListener('click', close);
+
+        btnNow.addEventListener('click', async () => {
+            btnNow.disabled = true;
+            const r = await doBanAction(type, id);
+            btnNow.disabled = false;
+            if (r && r.success) {
+                // update UI for this target
+                updateTargetUI(type, id, r.raw);
+                close();
+            }
+        });
+
+        btnSchedule.addEventListener('click', async () => {
+            const v = input.value;
+            if (!v) { hint.textContent = 'Iltimos sana va vaqtni tanlang'; return; }
+            const chosen = new Date(v);
+            if (isNaN(chosen.getTime()) || chosen.getTime() <= Date.now()) {
+                hint.textContent = 'Iltimos kelajakdagi vaqtni tanlang';
+                return;
+            }
+            btnSchedule.disabled = true;
+            // backend expects "YYYY-MM-DD HH:MM:SS"
+            const formatted = v.replace('T',' ') + ':00';
+            const r = await doBanAction(type, id, null, formatted);
+            btnSchedule.disabled = false;
+            if (r && r.success) {
+                updateTargetUI(type, id, r.raw);
+                close();
+            } else if (r && r.raw && r.raw.message) {
+                hint.textContent = r.raw.message;
+            }
+        });
+    }
+
+    /* --------- Update UI helper used after server response ---------- */
+    function updateTargetUI(type, id, raw) {
+        if (!raw) return;
+        const data = raw.data || raw;
+        const is_banned = (typeof data.is_banned !== 'undefined') ? data.is_banned : null;
+        const starts_at = data.starts_at ?? null;
+
+        // Department button/status
+        const depBtn = document.querySelector(`[data-type="${type}"][data-id="${id}"]`);
+        const depStatus = document.getElementById(`${type}-status-${id}`) || null;
+
+        if (depBtn) {
+            if (is_banned === true) {
+                depBtn.textContent = (type === 'department' ? '🔓 Unban' : 'Unban');
+                depBtn.classList.remove('btn-danger');
+                depBtn.classList.add('btn-success');
+                depBtn.dataset.banned = '1';
+            } else if (is_banned === false) {
+                depBtn.textContent = (type === 'department' ? '🛑 Ban' : 'Ban');
+                depBtn.classList.remove('btn-success');
+                depBtn.classList.add('btn-danger');
+                depBtn.dataset.banned = '0';
             }
         }
 
-        /* Simple toast helper (reuse if you already have one) */
-        function showToast(message, type = 'success') {
-            let container = document.getElementById('toast-container');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'toast-container';
-                Object.assign(container.style, {
-                    position: 'fixed',
-                    top: '20px',
-                    right: '20px',
-                    zIndex: 999999
-                });
-                document.body.appendChild(container);
+        if (depStatus) {
+            if (is_banned === true) {
+                depStatus.textContent = starts_at ? `🔒 Ban since: ${starts_at}` : '🔒 Banned';
+            } else {
+                depStatus.textContent = starts_at ? `⏰ Scheduled: ${starts_at}` : '';
             }
-            const t = document.createElement('div');
-            t.textContent = message;
-            Object.assign(t.style, {
-                background: type === 'success' ? '#16a34a' : '#ef4444',
-                color: '#fff',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                marginTop: '8px',
-                boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
-                fontWeight: 700
-            });
-            container.appendChild(t);
-            setTimeout(() => {
-                t.style.opacity = '0';
-                setTimeout(() => t.remove(), 300);
-            }, 3000);
         }
-    </script>
+
+        // If it's a user target, also update user-specific button (id pattern user-ban-btn-{id})
+        if (type === 'user') {
+            const userBtn = document.getElementById(`user-ban-btn-${id}`);
+            if (userBtn && (is_banned !== null)) {
+                userBtn.textContent = is_banned ? 'Unban' : 'Ban';
+                userBtn.style.background = is_banned ? '#ef4444' : '#6b7280';
+                userBtn.dataset.banned = is_banned ? '1' : '0';
+            }
+        }
+    }
+
+    /* --------- Event wiring: department and user buttons (no inline onclicks) ---------- */
+    function attachBanButtonListeners() {
+        // department buttons (and any other element with data-type and data-id)
+        document.querySelectorAll('[data-type][data-id]').forEach(el => {
+            // Only bind to those intended as ban buttons (have 'btn' class)
+            if (!el.classList.contains('btn')) return;
+            if (el.dataset._bound === '1') return;
+            el.dataset._bound = '1';
+
+            el.addEventListener('click', async function (e) {
+                // prevent double clicks
+                if (el.dataset.loading === '1') return;
+                const type = el.dataset.type;
+                const id = el.dataset.id;
+                const isBanned = el.dataset.banned === '1';
+
+                if (type === 'department') {
+                    // if currently banned -> unban immediately
+                    if (isBanned) {
+                        el.dataset.loading = '1';
+                        setBtnLoading(el, true);
+                        const r = await doBanAction(type, id, 'unban');
+                        if (r && r.success) updateTargetUI(type, id, r.raw);
+                        setBtnLoading(el, false);
+                        delete el.dataset.loading;
+                        return;
+                    } else {
+                        // show schedule modal for department
+                        showBanModal(type, id);
+                        return;
+                    }
+                }
+
+                if (type === 'user') {
+                    // users are instant ban/unban (no schedule in UI)
+                    el.dataset.loading = '1';
+                    setBtnLoading(el, true);
+                    const action = isBanned ? 'unban' : null;
+                    const r = await doBanAction('user', id, action);
+                    if (r && r.success) updateTargetUI('user', id, r.raw);
+                    setBtnLoading(el, false);
+                    delete el.dataset.loading;
+                    return;
+                }
+
+                // fallback: default toggle
+                el.dataset.loading = '1';
+                setBtnLoading(el, true);
+                const r = await doBanAction(type, id, isBanned ? 'unban' : null);
+                if (r && r.success) updateTargetUI(type, id, r.raw);
+                setBtnLoading(el, false);
+                delete el.dataset.loading;
+            });
+        });
+    }
+
+    /* --------- Expose compatibility function handleUserBanButton (legacy inline calls) ---------- */
+    window.handleUserBanButton = function(userId, userBanned) {
+        // find button
+        const btn = document.getElementById(`user-ban-btn-${userId}`);
+        if (!btn) return;
+        // ensure dataset is present
+        btn.dataset.type = btn.dataset.type || 'user';
+        btn.dataset.id = btn.dataset.id || userId;
+        btn.dataset.banned = btn.dataset.banned || (userBanned ? '1' : '0');
+        // delegate to bound handler
+        btn.click();
+    };
+
+    /* --------- Keep existing toggleBan function for compatibility --------- */
+    window.toggleBan = function(button) {
+        // expects button to have data-bannable-type & data-bannable-id OR data-type & data-id
+        const bannableType = (button.dataset.bannableType || button.dataset.type || '').trim();
+        const bannableId = (button.dataset.bannableId || button.dataset.id || '').trim();
+        if (!bannableType || !bannableId) {
+            showToast('No target specified', 'error');
+            return;
+        }
+        // disable while processing
+        button.disabled = true;
+        (async () => {
+            const result = await doBanAction(bannableType, bannableId);
+            if (result && result.success) updateTargetUI(bannableType, bannableId, result.raw);
+            button.disabled = false;
+        })();
+    };
+
+    /* --------- toggleBanCheckbox (kept, but uses doBanAction) ---------- */
+    window.toggleBanCheckbox = async function(checkbox) {
+        const type = checkbox.dataset.type || 'phone';
+        const id = checkbox.dataset.id;
+        if (!id) return;
+        const wasChecked = checkbox.checked;
+        checkbox.disabled = true;
+        const r = await doBanAction(type, id);
+        if (! (r && r.success)) {
+            // rollback on error
+            checkbox.checked = !wasChecked;
+        } else {
+            // update possible related UI (phone select)
+            const userLine = checkbox.closest('.user-line');
+            const select = userLine?.querySelector('.phone-select');
+            if (select) {
+                const opt = select.options[select.selectedIndex];
+                if (opt && r.raw && r.raw.data && typeof r.raw.data.is_banned !== 'undefined') {
+                    opt.setAttribute('data-phone-banned', r.raw.data.is_banned ? '1' : '0');
+                }
+            }
+        }
+        checkbox.disabled = false;
+    };
+
+    /* --------- Phone select syncing (existing logic kept) ---------- */
+    document.querySelectorAll('.phone-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const userLine = this.closest('.user-line');
+            if (!userLine) return;
+            const phoneCheckbox = userLine.querySelector('.phone-ban-checkbox');
+            const selectedOption = this.options[this.selectedIndex];
+            const phoneId = selectedOption?.value;
+            const isPhoneBanned = selectedOption?.getAttribute('data-phone-banned') === '1';
+            const userBtn = userLine.querySelector('.ban-toggle-btn');
+            const userBanned = userBtn && (userBtn.dataset.banned === '1' || userBtn.textContent.toLowerCase().includes('unban'));
+
+            if (phoneCheckbox) {
+                phoneCheckbox.dataset.id = phoneId;
+                phoneCheckbox.checked = !!isPhoneBanned;
+                phoneCheckbox.disabled = !!userBanned;
+            }
+        });
+    });
+
+    /* --------- Confirm modal bindings kept elsewhere (if you use it) --------- */
+    // If you have a confirm modal script elsewhere, keep it. We preserved showToast & toggle functions.
+
+    /* --------- Initialize bindings on DOMContentLoaded --------- */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachBanButtonListeners);
+    } else {
+        attachBanButtonListeners();
+    }
+})();
+</script>
 
 
 

@@ -162,6 +162,54 @@ return [
         'verify_failed' => 'Tasdiqlash muvaffaqiyatsiz',
         'operations_count' => 'Operatsiyalar soni',
         'messages_count' => 'Xabarlar soni',
+        'search'=> 'Qidirish',
+    ],
+
+
+
+
+
+    'ban' => [
+        'invalid_type' => 'Noto‘g‘ri ban turi.',
+        'not_found' => ':model topilmadi.',
+        'admin_department_forbidden' => 'Admin bo‘limni ban qila olmaydi.',
+        'admin_to_admin_forbidden' => 'Admin boshqa adminni ban qila olmaydi.',
+        'no_permission' => 'Bu amal uchun ruxsat yo‘q.',
+        'invalid_date' => 'Sana formati noto‘g‘ri.',
+        'unbanned' => ':model uchun ban olib tashlandi.',
+        'banned_now' => ':model darhol ban qilindi.',
+        'scheduled' => ':model uchun ban rejalashtirildi.',
+        'internal_error' => 'Serverda ichki xatolik yuz berdi.',
+    ],
+
+
+
+
+
+
+    'telegram' => [
+
+        'login' => 'Telegram bilan bog‘lash',
+        'phone_label' => 'Telefon raqami',
+        'phone_placeholder' => 'Foydalanuvchi telefon raqamini kiriting',
+        'phone_required' => 'Telefon raqami kiritilishi shart',
+        'send_sms' => 'SMS yuborish',
+        'sms_sent' => 'Tasdiqlash kodi yuborildi',
+
+        // Code step
+        'code_label' => 'Tasdiqlash kodi',
+        'code_placeholder' => 'SMS orqali kelgan kodni kiriting',
+        'code_required' => 'Telefon va tasdiqlash kodi kiritilishi kerak',
+        'send_code' => 'Kodni tasdiqlash',
+
+        'verifying' => 'Tasdiqlanmoqda, iltimos kuting...',
+        'verified' => 'Telegram muvaffaqiyatli bog‘landi',
+
+        'invalid_code' => 'Tasdiqlash kodi noto‘g‘ri',
+        'expired_code' => 'Tasdiqlash kodi muddati tugagan',
+        'try_again' => 'Qayta urinib ko‘ring',
+        'limit' => 'Limitga yetildi. Foydalanuvchi o‘chirilsa, yangi slot bo‘shaydi.'
+
     ],
 
 ];

@@ -23,6 +23,7 @@ class UserStoreRequest extends FormRequest
             'role_id' => 'required|exists:roles,id',
             'department_id' => 'nullable|exists:departments,id',
             'telegram_id' => 'nullable|string|max:255|unique:users,telegram_id',
+            'max_users'=> 'nullable|integer'
         ];
     }
 

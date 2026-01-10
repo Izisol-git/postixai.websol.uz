@@ -51,7 +51,7 @@ class TelegramController extends Controller
             sleep(2);
             return response()->json([
                 'status' => 'sms_sent',
-                'message' => "SMS yuborildi {$user->name} uchun!",
+                'message' => __('messages.telegram.sms_sent'),
                 'user_id' => $user->id,
             ], 200);
         } catch (ValidationException $e) {

@@ -6,183 +6,162 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class BanController extends Controller
 {
     public function banUnban(Request $request)
     {
-        $authUser = $request->user();
+        try {
+            $authUser = $request->user();
+            $role     = $authUser->role->name ?? null;
 
-        $map = [
-            'user'       => \App\Models\User::class,
-            'phone'      => \App\Models\UserPhone::class,
-            'department' => \App\Models\Department::class,
-        ];
+            $isSuperadmin = $role === 'superadmin';
+            $isAdmin      = $role === 'admin';
 
-        $data = $request->validate([
-            'bannable_type' => ['required', 'string'],
-            'bannable_id'   => ['required', 'integer'],
-            'action'        => ['nullable', 'string'],
-            'starts_at'     => ['nullable', 'date'],
-        ]);
+            /* =======================
+             | Bannable map
+             ======================= */
+            $map = [
+                'user'       => \App\Models\User::class,
+                'phone'      => \App\Models\UserPhone::class,
+                'department' => \App\Models\Department::class,
+            ];
 
-        $rawType  = trim($data['bannable_type']);
-        $id       = (int) $data['bannable_id'];
-        $action   = isset($data['action']) ? strtolower($data['action']) : null;
-        $lowerMap = array_change_key_case($map, CASE_LOWER);
+            /* =======================
+             | Validation
+             ======================= */
+            $data = $request->validate([
+                'bannable_type' => ['required', 'string'],
+                'bannable_id'   => ['required', 'integer'],
+                'action'        => ['nullable', 'string'],
+                'starts_at'     => ['nullable', 'date'],
+            ]);
 
-        if (isset($lowerMap[strtolower($rawType)])) {
-            $class = $lowerMap[strtolower($rawType)];
-            $shortType = strtolower($rawType);
-            if (! in_array($shortType, array_keys($map), true)) {
-                $shortType = array_search($class, $map, true);
+            $type   = strtolower(trim($data['bannable_type']));
+            $action = strtolower($data['action'] ?? '');
+            $id     = (int) $data['bannable_id'];
+
+            if (!isset($map[$type])) {
+                return $this->error(__('messages.ban.invalid_type'), 422);
             }
-        } elseif (class_exists($rawType) && in_array($rawType, $map, true)) {
-            $class = $rawType;
-            $shortType = array_search($class, $map, true);
-        } else {
-            return response()->json(['success' => false, 'message' => 'Invalid bannable type.'], 422);
-        }
 
-        $model = $class::find($id);
-        if (! $model) {
-            return response()->json(['success' => false, 'message' => class_basename($class) . ' not found.'], 404);
-        }
+            $class = $map[$type];
+            $model = $class::find($id);
 
-        $isSuperadmin = ($authUser->role->name ?? null) === 'superadmin';
-        if (! $isSuperadmin) {
-            $modelDept = $model->department_id ?? null;
-            if ($modelDept === null || $modelDept !== $authUser->department_id) {
-                return response()->json(['success' => false, 'message' => 'No permission.'], 403);
+            if (!$model) {
+                return $this->error(
+                    __('messages.ban.not_found', ['model' => class_basename($class)]),
+                    404
+                );
             }
-        }
 
-        $modelName = class_basename($class);
-        $label = Str::headline($modelName);
+            /* =======================
+             | PERMISSIONS
+             ======================= */
 
-        // existing ban (morphOne)
-        $ban = $model->ban()->first();
-
-        // parse starts_at when provided
-        $startsAt = null;
-        if (! empty($data['starts_at'])) {
-            try {
-                $startsAt = Carbon::parse($data['starts_at']);
-            } catch (\Throwable $e) {
-                return response()->json(['success' => false, 'message' => 'Invalid starts_at format.'], 422);
+            // admin departmentni ban qila olmaydi
+            if ($isAdmin && $type === 'department') {
+                return $this->error(__('messages.ban.admin_department_forbidden'), 403);
             }
-        }
 
-        //
-        // Business rules (unchanged) but ensure on UNBAN we null starts_at
-        //
+            // admin boshqa adminni ban qila olmaydi
+            if ($isAdmin && $type === 'user') {
+                if (($model->role->name ?? null) === 'admin') {
+                    return $this->error(__('messages.ban.admin_to_admin_forbidden'), 403);
+                }
+            }
 
-        // EXPLICIT unban: always clear starts_at and deactivate if ban exists
-        if ($action === 'unban') {
-            if ($ban) {
-                $ban->active = false;
-                $ban->starts_at = null;      // <- ensure null on unban
-                $ban->save();
-                return response()->json([
-                    'success' => true,
-                    'model' => $modelName,
+            // superadmin emas → faqat o‘z departmenti
+            if (!$isSuperadmin && $type !== 'department') {
+                if (
+                    !isset($model->department_id) ||
+                    $model->department_id !== $authUser->department_id
+                ) {
+                    return $this->error(__('messages.ban.no_permission'), 403);
+                }
+            }
+
+            /* =======================
+             | Ban logic
+             ======================= */
+            $ban   = $model->ban()->first();
+            $label = Str::headline(class_basename($class));
+            $now   = Carbon::now();
+
+            // starts_at parse
+            $startsAt = null;
+            if (!empty($data['starts_at'])) {
+                try {
+                    $startsAt = Carbon::parse($data['starts_at']);
+                } catch (\Throwable $e) {
+                    return $this->error(__('messages.ban.invalid_date'), 422);
+                }
+            }
+
+            /* ===== UNBAN ===== */
+            if ($action === 'unban') {
+                if ($ban) {
+                    $ban->update(['active' => false, 'starts_at' => null]);
+                }
+
+                return $this->success([
+                    'model' => $label,
                     'is_banned' => false,
                     'starts_at' => null,
-                    'message' => "{$label} unbanned.",
-                ]);
+                ], __('messages.ban.unbanned', ['model' => $label]));
             }
 
-            return response()->json([
-                'success' => true,
-                'model' => $modelName,
-                'is_banned' => false,
-                'starts_at' => null,
-                'message' => 'No active ban to remove.',
-            ]);
-        }
+            /* ===== TOGGLE OFF ===== */
+            if ($ban && $ban->active) {
+                $ban->update(['active' => false, 'starts_at' => null]);
 
-        // If ban exists and is active -> always unban on any request (also null starts_at)
-        if ($ban && $ban->active) {
-            $ban->active = false;
-            $ban->starts_at = null; // <- ensure null
-            $ban->save();
+                return $this->success([
+                    'model' => $label,
+                    'is_banned' => false,
+                    'starts_at' => null,
+                ], __('messages.ban.unbanned', ['model' => $label]));
+            }
 
-            return response()->json([
-                'success' => true,
-                'model' => $modelName,
-                'is_banned' => false,
-                'starts_at' => null,
-                'message' => "{$label} unbanned.",
-            ]);
-        }
-
-        // Now: either no ban or ban exists but inactive (scheduled)
-        if ($shortType === 'user') {
-            // Users: immediate ban only
-            $now = Carbon::now();
-            if ($ban) {
-                $ban->starts_at = $now;
-                $ban->active = true;
-                $ban->save();
-            } else {
-                $ban = $model->ban()->create([
+            /* ===== USER → instant ===== */
+            if ($type === 'user') {
+                $ban = $model->ban()->updateOrCreate([], [
                     'starts_at' => $now,
-                    'active' => true,
+                    'active'    => true,
                 ]);
+
+                return $this->success([
+                    'model' => $label,
+                    'is_banned' => true,
+                    'starts_at' => $ban->starts_at?->toDateTimeString(),
+                ], __('messages.ban.banned_now', ['model' => $label]));
             }
 
-            return response()->json([
-                'success' => true,
-                'model' => $modelName,
-                'is_banned' => true,
-                'starts_at' => $ban->starts_at ? $ban->starts_at->toDateTimeString() : null,
-                'message' => "{$label} banned now.",
-            ]);
-        }
+            /* ===== PHONE / DEPARTMENT ===== */
+            $start  = ($startsAt && $startsAt->gt($now)) ? $startsAt : $now;
+            $active = !($startsAt && $startsAt->gt($now));
 
-        // phone/department: scheduling supported
-        $now = Carbon::now();
-        if ($startsAt && $startsAt->gt($now)) {
-            // scheduled (inactive)
-            if ($ban) {
-                $ban->starts_at = $startsAt;
-                $ban->active = false;
-                $ban->save();
-            } else {
-                $ban = $model->ban()->create([
-                    'starts_at' => $startsAt,
-                    'active' => false,
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'model' => $modelName,
-                'is_banned' => false,
-                'starts_at' => $ban->starts_at ? $ban->starts_at->toDateTimeString() : null,
-                'message' => "{$label} ban scheduled for {$ban->starts_at->toDateTimeString()}.",
+            $ban = $model->ban()->updateOrCreate([], [
+                'starts_at' => $start,
+                'active'    => $active,
             ]);
-        } else {
-            // immediate ban
-            $start = $startsAt ?: $now;
-            if ($ban) {
-                $ban->starts_at = $start;
-                $ban->active = true;
-                $ban->save();
-            } else {
-                $ban = $model->ban()->create([
-                    'starts_at' => $start,
-                    'active' => true,
-                ]);
-            }
 
-            return response()->json([
-                'success' => true,
-                'model' => $modelName,
-                'is_banned' => true,
-                'starts_at' => $ban->starts_at ? $ban->starts_at->toDateTimeString() : null,
-                'message' => "{$label} banned now.",
+            return $this->success([
+                'model' => $label,
+                'is_banned' => $active,
+                'starts_at' => $ban->starts_at?->toDateTimeString(),
+            ], $active
+                ? __('messages.ban.banned_now', ['model' => $label])
+                : __('messages.ban.scheduled', ['model' => $label])
+            );
+        } catch (\Throwable $e) {
+            Log::error('BanController error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => optional($request->user())->id,
             ]);
+
+            return $this->error(__('messages.ban.internal_error'), 500);
         }
     }
 }

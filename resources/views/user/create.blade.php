@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>POSTIX AI</title>
+    <title>POSTIX AI — Yangi foydalanuvchi</title>
 
     <style>
         :root {
@@ -92,6 +92,7 @@
         input[type="text"],
         input[type="email"],
         input[type="password"],
+        input[type="number"],
         select {
             background: #071827;
             color: var(--text);
@@ -175,6 +176,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="topbar">
@@ -185,8 +187,8 @@
 
             <div style="display:flex; gap:8px; align-items:center;">
                 <a href="{{ url()->previous() }}" class="btn btn-secondary" style="text-decoration:none;">
-                        ← Back
-                    </a>
+                    ← Back
+                </a>
             </div>
         </div>
 
@@ -211,8 +213,8 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="name">Ism (name) <span style="color:var(--danger)">*</span></label>
-                        <input id="name" name="name" type="text"  required 
-                            autocomplete="name" />
+                        <input id="name" name="name" type="text" required
+                            value="{{ old('name') }}" autocomplete="name" />
                         @error('name')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
@@ -221,8 +223,8 @@
                     <div class="form-group">
                         <label for="telegram_id">Telegram ID (telegram_id) <span
                                 style="color:var(--danger)">*</span></label>
-                        <input id="telegram_id" name="telegram_id" type="text" required
-                            placeholder="123412345" autocomplete="off" />
+                        <input id="telegram_id" name="telegram_id" type="text" required 
+                            placeholder="123412345" autocomplete="off"  />
                         <div class="help">Foydalanuvchining Telegram raqami yoki ID</div>
                         @error('telegram_id')
                             <div class="field-error">{{ $message }}</div>
@@ -292,7 +294,7 @@
                                 <button type="button" id="togglePassword" class="btn btn-secondary"
                                     style="padding:6px 10px;">Show</button>
                             </div>
-                            <div class="help">Minimal xavfsiz parol qoida (server validator bo'lishi kerak)</div>
+                            <div class="help">Minimal xavfsiz parol  </div>
                             @error('password')
                                 <div class="field-error">{{ $message }}</div>
                             @enderror
@@ -300,19 +302,61 @@
                     </div>
                 </div>
 
+                <!-- === YANGI: admin-specific options === -->
+                <div id="admin-options" style="display:none; margin-top:12px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="max_users">Admin yaratishi mumkin bo'lgan userlar soni </label>
+                            <input id="max_users" name="max_users" type="number" min="0"
+                                value="{{ old('max_users') }}" placeholder="Masalan: 10" />
+                            @error('max_users')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="form-group">
+                            <label>Contact Catalog</label>
+                            <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+                                <label style="display:flex; align-items:center; gap:8px;">
+                                    <input type="checkbox" id="contact_catalog" name="contact_catalog" value="1"
+                                        {{ old('contact_catalog') ? 'checked' : '' }}>
+                                    Contact catalog yaratadi
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact selection type (radio) -->
+                    {{-- <div id="contact-selection-block" style="display:none; margin-top:8px;">
+                        <label>Kontakt tanlash turi (bitta yoki bir nechta):</label>
+                        <div style="display:flex; gap:12px; margin-top:6px;">
+                            <label style="display:flex; align-items:center; gap:8px;">
+                                <input type="radio" name="contact_selection" value="radio"
+                                    {{ old('contact_selection') == 'radio' ? 'checked' : '' }}>
+                                <span>Radio — faqat bitta kontakt tanlanadi</span>
+                            </label>
+
+                            <label style="display:flex; align-items:center; gap:8px;">
+                                <input type="radio" name="contact_selection" value="checkbox"
+                                    {{ old('contact_selection') == 'checkbox' ? 'checked' : '' }}>
+                                <span>Checkbox — bir nechta kontakt tanlanadi</span>
+                            </label>
+                        </div>
+                        @error('contact_selection')
+                            <div class="field-error">{{ $message }}</div>
+                        @enderror
+                    </div> --}}
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Create user</button>
-                    
-                <a href="{{ route('departments.index') }}" class="btn btn-secondary" style="text-decoration:none;">Cancel</a>
-
-
-                    
+                    <a href="{{ route('departments.index') }}" class="btn btn-secondary" style="text-decoration:none;">Cancel</a>
                 </div>
             </form>
         </div>
 
         <div class="note">
-            <strong>Note:</strong> Barcha maydonlar majburiy. Server tomonidan ham validatsiya o'tadi.
+            <strong>Note:</strong> Barcha maydonlar server tarafda ham tekshiriladi. Agar admin yaratishi mumkin bo‘lgan userlar soni cheklovi bo‘lsa, server tarafda ham tekshirilishi kerak (policy / validation).
         </div>
     </div>
 
@@ -333,61 +377,85 @@
                 });
             }
 
-            // Fill sample data
-            const fillBtn = document.getElementById('fillTest');
-            if (fillBtn) {
-                fillBtn.addEventListener('click', function() {
-                    document.getElementById('name').value = 'Test User';
-                    document.getElementById('telegram_id').value = '123456789';
-                    const dept = document.getElementById('department_id');
-                    if (dept && dept.options.length > 1) dept.selectedIndex = 1;
-                    const role = document.getElementById('role_id');
-                    if (role && role.options.length > 1) role.selectedIndex = 1;
-                    document.getElementById('email').value = 'test+' + Date.now() + '@example.com';
-                    document.getElementById('password').value = 'Secret123!';
-                    triggerRoleChange(); // show credentials if needed
-                });
-            }
-
-            // Conditional show/hide credential block
+            // Elements
             const roleSelect = document.getElementById('role_id');
             const credBlock = document.getElementById('credential-block');
-            const emailInput = document.getElementById('email');
-            const passwordInput = document.getElementById('password');
+            const adminOptions = document.getElementById('admin-options');
+            const maxUsersInput = document.getElementById('max_users');
 
+            const contactCatalogCheckbox = document.getElementById('contact_catalog');
+            const contactSelectionBlock = document.getElementById('contact-selection-block');
+
+            // Utility: roleName from selected option
+            function getSelectedRoleName() {
+                if (!roleSelect) return '';
+                const opt = roleSelect.options[roleSelect.selectedIndex];
+                return opt?.dataset?.roleName?.toString() || '';
+            }
+
+            // Should show credentials for admin or superadmin (case-insensitive)
             function shouldShowCredentials(roleName) {
                 if (!roleName) return false;
                 roleName = roleName.toLowerCase();
                 return roleName === 'admin' || roleName === 'superadmin';
             }
 
+            // Apply visibility depending on role and other inputs
             function applyVisibility() {
-                const opt = roleSelect.options[roleSelect.selectedIndex];
-                const roleName = opt?.dataset?.roleName || '';
+                const roleName = getSelectedRoleName().toLowerCase();
+
+                // Credentials show for admin or superadmin
                 if (shouldShowCredentials(roleName)) {
                     credBlock.style.display = '';
-                    if (emailInput) emailInput.setAttribute('required', 'required');
-                    if (passwordInput) passwordInput.setAttribute('required', 'required');
+                    if (document.getElementById('email')) document.getElementById('email').setAttribute('required', 'required');
+                    if (document.getElementById('password')) document.getElementById('password').setAttribute('required', 'required');
                 } else {
                     credBlock.style.display = 'none';
-                    if (emailInput) emailInput.removeAttribute('required');
-                    if (passwordInput) passwordInput.removeAttribute('required');
+                    if (document.getElementById('email')) document.getElementById('email').removeAttribute('required');
+                    if (document.getElementById('password')) document.getElementById('password').removeAttribute('required');
+                }
+
+                // Admin-specific options: only when role is exactly 'admin'
+                if (roleName === 'admin') {
+                    adminOptions.style.display = '';
+                    // require max_users on client if you want:
+                    // maxUsersInput && maxUsersInput.setAttribute('required', 'required');
+                } else {
+                    adminOptions.style.display = 'none';
+                    // maxUsersInput && maxUsersInput.removeAttribute('required');
+                }
+
+                // contact selection visibility based on checkbox
+                toggleContactSelection();
+            }
+
+            function toggleContactSelection() {
+                if (!contactCatalogCheckbox) return;
+                if (contactCatalogCheckbox.checked) {
+                    contactSelectionBlock.style.display = '';
+                } else {
+                    contactSelectionBlock.style.display = 'none';
+                    // uncheck radio choices when hidden
+                    const radios = document.getElementsByName('contact_selection');
+                    radios.forEach && radios.forEach(r => r.checked = false);
                 }
             }
 
-            function triggerRoleChange() {
+            // Events
+            roleSelect && roleSelect.addEventListener('change', applyVisibility);
+            contactCatalogCheckbox && contactCatalogCheckbox.addEventListener('change', toggleContactSelection);
+
+            // Init on DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', function() {
+                applyVisibility();
+            });
+
+            // Also call once immediately in case DOMContentLoaded already fired
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
                 applyVisibility();
             }
-
-            if (roleSelect) {
-                roleSelect.addEventListener('change', applyVisibility);
-            }
-
-            document.addEventListener('DOMContentLoaded', applyVisibility);
         })();
     </script>
 </body>
-
-
 
 </html>

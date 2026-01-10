@@ -4,7 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class limit extends Model
+class Limit extends Model
 {
-    //
+    protected $table = 'limits';
+
+    protected $fillable = [
+        'max_users',
+        'max_phones',
+        'max_operations',
+    ];
+
+    /**
+     * Polymorphic relation
+     * Kimga tegishli ekanini bildiradi (User, Admin, Department va hokazo)
+     */
+    public function limitable()
+    {
+        return $this->morphTo();
+    }
 }

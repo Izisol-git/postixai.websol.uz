@@ -10,7 +10,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
-
         :root {
             --bg: #071427;
             --card: #0f2233;
@@ -316,15 +315,54 @@
         }
 
         /* safety: override any other inline color that hides text */
-        *[style*="color:var(--text-disabled)"] {
+        /* *[style*="color:var(--text-disabled)"] {
             color: var(--text) !important;
         }
+
+        /* Toast styling */
+        .toast-alert {
+            min-width: 260px;
+            max-width: 380px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(2, 6, 23, 0.35);
+            color: var(--text);
+            font-weight: 600;
+            opacity: 1;
+            transition: transform .25s ease, opacity .25s ease;
+        }
+
+        /* slide-in animation */
+        .toast-enter {
+            transform: translateY(-8px) scale(.98);
+            opacity: 0;
+        } */
     </style>
 
 
 </head>
 
 <body>
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    @if (session('success'))
+        showSuccess(@json(session('success')));
+    @endif
+
+    @if (session('error'))
+        showError(@json(session('error')));
+    @endif
+
+    @if ($errors->any())
+        @foreach ($errors->all() as $err)
+            showError(@json($err));
+        @endforeach
+    @endif
+
+});
+</script>
+
     <div class="layout">
 
         <!-- SIDEBAR -->
@@ -472,9 +510,9 @@
 
     <script>
         /*
-                      Theme toggle: stores 'light'|'dark' in localStorage under key 'app_theme'
-                      Usage: body.classList.toggle('light', true) -> light theme
-                    */
+                          Theme toggle: stores 'light'|'dark' in localStorage under key 'app_theme'
+                          Usage: body.classList.toggle('light', true) -> light theme
+                        */
         (function() {
             const THEME_KEY = 'app_theme';
             const body = document.body;

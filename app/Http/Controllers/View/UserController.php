@@ -43,12 +43,12 @@ class UserController extends Controller
      * Store user
      */
     public function store(UserStoreRequest $request)
-    {
+    {   
         $authUser = $request->user();
         $data = $request->validated();
 
         $user = $this->userService->store($data, $authUser);
-
+        
         // request ichidagi department_id asosida redirect
         $departmentId = $request->input('department_id');
         if ($request->wantsJson()) {
@@ -236,7 +236,7 @@ public function update(UserUpdateRequest $request, User $user)
         }
 
         return redirect()
-            ->route('departments.show', $user->department_id)
+            ->back()
             ->with('success', 'User deleted successfully');
     }
 

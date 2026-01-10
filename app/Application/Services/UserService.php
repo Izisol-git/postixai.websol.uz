@@ -44,6 +44,11 @@ class UserService
         }
 
         $user = User::create($data);
+        if (isset($data['max_users']) && $data['max_users'] !== null) {
+        $user->limit()->create([
+            'max_users' => (int) $data['max_users'],
+        ]);
+    }
         return $user->load(['role', 'department']);
     }
 

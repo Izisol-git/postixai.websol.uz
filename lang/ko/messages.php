@@ -158,7 +158,45 @@ return [
     'verify_failed' => '확인 실패',
     'operations_count' => '작업 수',
     'messages_count' => '메시지 수',
+    'search'=> '검색',
   ],
+  'ban' => [
+        'invalid_type' => '잘못된 차단 유형입니다.',
+        'not_found' => ':model을(를) 찾을 수 없습니다.',
+        'admin_department_forbidden' => '관리자는 부서를 차단할 수 없습니다.',
+        'admin_to_admin_forbidden' => '관리자는 다른 관리자를 차단할 수 없습니다.',
+        'no_permission' => '이 작업을 수행할 권한이 없습니다.',
+        'invalid_date' => '잘못된 날짜 형식입니다.',
+        'unbanned' => ':model의 차단이 해제되었습니다.',
+        'banned_now' => ':model이(가) 즉시 차단되었습니다.',
+        'scheduled' => ':model의 차단이 예약되었습니다.',
+        'internal_error' => '서버 내부 오류가 발생했습니다.',
+    ],
+    'telegram' => [
+
+    'login' => 'Telegram 연동',
+    'phone_label' => '전화번호',
+    'phone_placeholder' => '사용자의 전화번호를 입력하세요',
+    'phone_required' => '전화번호를 입력해야 합니다',
+    'send_sms' => 'SMS 보내기',
+    'sms_sent' => '인증 코드가 전송되었습니다',
+
+    // Code step
+    'code_label' => '인증 코드',
+    'code_placeholder' => 'SMS로 받은 코드를 입력하세요',
+    'code_required' => '전화번호와 인증 코드를 입력해야 합니다',
+    'send_code' => '코드 확인',
+
+    'verifying' => '확인 중입니다. 잠시만 기다려 주세요...',
+    'verified' => 'Telegram이 성공적으로 연동되었습니다',
+
+    'invalid_code' => '인증 코드가 올바르지 않습니다',
+    'expired_code' => '인증 코드의 유효 기간이 만료되었습니다',
+    'try_again' => '다시 시도해 주세요',
+    'limit' => '한도에 도달했습니다. 사용자를 삭제하면 새로운 슬롯이 열립니다.'
+
+],
+
 
 
 ];

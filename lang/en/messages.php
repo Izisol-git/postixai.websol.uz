@@ -173,7 +173,45 @@ return [
     'verify_failed' => 'Verification failed',
     'operations_count' => 'Operations count',
     'messages_count' => 'Messages count',
+    'search'=> 'Search',
   ],
+  'ban' => [
+        'invalid_type' => 'Invalid ban type.',
+        'not_found' => ':model not found.',
+        'admin_department_forbidden' => 'Admin cannot ban a department.',
+        'admin_to_admin_forbidden' => 'Admin cannot ban another admin.',
+        'no_permission' => 'You do not have permission to perform this action.',
+        'invalid_date' => 'Invalid date format.',
+        'unbanned' => 'Ban removed for :model.',
+        'banned_now' => ':model has been banned immediately.',
+        'scheduled' => 'Ban for :model has been scheduled.',
+        'internal_error' => 'An internal server error occurred.',
+    ],
+    'telegram' => [
+
+    'login' => 'Connect Telegram',
+    'phone_label' => 'Phone number',
+    'phone_placeholder' => 'Enter the user’s phone number',
+    'phone_required' => 'Phone number is required',
+    'send_sms' => 'Send SMS',
+    'sms_sent' => 'Verification code has been sent',
+
+    // Code step
+    'code_label' => 'Verification code',
+    'code_placeholder' => 'Enter the code received via SMS',
+    'code_required' => 'Phone number and verification code are required',
+    'send_code' => 'Verify code',
+
+    'verifying' => 'Verifying, please wait...',
+    'verified' => 'Telegram has been successfully connected',
+
+    'invalid_code' => 'Invalid verification code',
+    'expired_code' => 'The verification code has expired',
+    'try_again' => 'Please try again',
+    'limit' => 'Limit reached. A new slot will be available after deleting a user.'
+
+],
+
 
 
 ];

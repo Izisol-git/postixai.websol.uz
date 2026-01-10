@@ -26,7 +26,7 @@
 <body>
 <div class="d-flex justify-content-center align-items-center" style="min-height:100vh;">
     <div class="auth-box">
-        <h4 class="text-center mb-3">Telegram bilan bog'lash</h4>
+        <h4 class="text-center mb-3">{{ __('messages.telegram.login') }}</h4>
 
         <div id="alertSuccess" class="alert alert-success d-none" role="alert"></div>
         <div id="alertError" class="alert alert-danger d-none" role="alert"></div>

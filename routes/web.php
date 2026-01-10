@@ -14,7 +14,6 @@ require __DIR__ . '/methods/web.php';
 
 Route::get('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/login', [AuthController::class, 'authenticate']);
-
 Route::middleware('auth')->group(function () {
 
 
@@ -53,7 +52,7 @@ Route::middleware('auth')->group(function () {
         
         // Route::get('/profile', [UserController::class, 'profile'])->name('profile');
         // Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
-        Route::prefix('/admin')->namespace('App\Http\Controllers\View\Admin')->group(function () {
+        Route::prefix('/admin')->group(function () {
             Route::get('/departments/{department}', [MainController::class, 'index'])->name('departments.dashboard');
             Route::get('/departments/{department}/users', [MainController::class, 'users'])->name('departments.users');
             Route::get('/departments/{department}/operations', [MainController::class, 'operations'])->name('departments.operations');
@@ -62,6 +61,15 @@ Route::middleware('auth')->group(function () {
             Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('admin.users.show');
             Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
             Route::post('/users/{user}/destroy', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
+
+            //Telegram
+            
+            Route::post('/telegram/phone', [AdminUserController::class, 'sendPhone'])->name('admin.telegram.send');
+
+            Route::post('/telegram/login', [AdminUserController::class, 'storeUserWithTelegram'])->name('admin.telegram.login');
+            Route::post('/telegram/user-logout', [AdminUserController::class, 'logoutUserFromTelegram'])->name('admin.telegram.user-logout');
+            Route::get('/new-telegram-users', [AdminUserController::class, 'newTelegramUsers'])->name('admin.telegram.new-users');
+            
         });
 
     });

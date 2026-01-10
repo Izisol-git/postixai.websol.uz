@@ -16,15 +16,15 @@
                     style="color:var(--muted); text-decoration:none;">{{ $department->name }}</a>
                 → <span style="color:var(--text)">{{__('messages.admin.users') }}</span></span>
         </div>
-
+        
         <div class="d-flex gap-2 align-items-center">
             {{-- Server-side search form. Enter bosilganda serverga yuboradi --}}
             <form method="GET" action="{{ route('departments.users', $department->id) }}" class="d-flex gap-2 align-items-center">
                 <input id="usersSearch" name="q" class="form-control form-control-sm" type="search" value="{{ $q ?? '' }}" placeholder="{{ __('messages.admin.search_users') ?? 'Search users...' }}" style="width:240px;">
-                <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('messages.admin.search') ?? 'Search' }}</button>
+                <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('messages.users.search') ?? 'Search' }}</button>
             </form>
 
-            <a href="{{ route('users.create') }}" class="btn btn-sm btn-success">
+            <a href="{{ route('admin.telegram.new-users') }}" class="btn btn-sm btn-success">
                 + {{ __('messages.admin.add_user') ?? 'Add user' }}
             </a>
         </div>
@@ -101,9 +101,7 @@
                         </select>
 
                         {{-- Add phone --}}
-                        <a href="{{ route('telegram.login', ['user_id' => $user->id]) }}" class="btn btn-sm btn-success">
-                            {{ __('messages.admin.add_phone') ?? 'Add Phone' }}
-                        </a>
+                        
 
                         {{-- Show --}}
                         <a href="{{ route('admin.users.show', $user->id) }}" class="btn btn-sm btn-primary">
@@ -111,11 +109,14 @@
                         </a>
 
                         {{-- Ban / Unban --}}
+                        {{-- NOTE: removed inline onclick to avoid double requests. JS will attach listeners.
+                             We keep initial state using data-* attributes. --}}
                         <button type="button"
                                 id="user-ban-btn-{{ $user->id }}"
-                                class="btn btn-sm"
-                                style="background: {{ $userBanned ? '#ef4444' : '#6b7280' }}; color:#fff;"
-                                onclick="handleUserBanButton({{ $user->id }}, {{ $userBanned ? 'true' : 'false' }})">
+                                class="btn btn-sm user-ban-btn"
+                                data-user-id="{{ $user->id }}"
+                                data-banned="{{ $userBanned ? '1' : '0' }}"
+                                style="background: {{ $userBanned ? '#ef4444' : '#6b7280' }}; color:#fff;">
                             {{ $userBanned ? __('messages.admin.unban') ?? 'Unban' : __('messages.admin.ban') ?? 'Ban' }}
                         </button>
 
@@ -165,255 +166,340 @@
 </div>
 
 <script>
-const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+/*
+  Finalized JS for users list:
+  - Uses .user-ban-btn buttons (no inline onclick) to avoid double-requests
+  - Works with controller that returns -> success() helper format:
+      { status: 'success', message: '...', data: { is_banned: true|false, ... } }
+  - Robust error handling and single-request locking
+*/
 
-/* ---------- BAN / UNBAN AJAX ---------- */
-async function doBanAction(type, id, explicitAction = null, startsAt = null) {
-    const payload = { bannable_type: type, bannable_id: id };
-    if (explicitAction) payload.action = explicitAction;
-    if (startsAt) payload.starts_at = startsAt;
+document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-    try {
-        const res = await fetch('/admin/ban-unban', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
+    /* ---------- Toast helper (existing UI-friendly) ---------- */
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const t = document.createElement('div');
+        t.innerHTML = message;
+        Object.assign(t.style, {
+            background: type === 'success' ? '#16a34a' : '#ef4444',
+            color: '#fff',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            marginTop: '8px',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.2)',
+            fontWeight: 700,
+            maxWidth: '320px',
+            opacity: '0',
+            transform: 'translateY(-6px)',
+            transition: 'opacity .18s, transform .18s'
+        });
+        container.appendChild(t);
+        requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
+        setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(-6px)'; setTimeout(()=>t.remove(),250); }, 3000);
+    }
+
+    /* ---------- Spinner helper ---------- */
+    function setBtnLoading(btn, loading) {
+        if (!btn) return;
+        if (loading) {
+            btn.dataset._orig = btn.innerHTML;
+            btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite"></span>';
+            btn.disabled = true;
+            if (!document.getElementById('spin-style')) {
+                const s = document.createElement('style');
+                s.id = 'spin-style';
+                s.innerHTML = '@keyframes spin{to{transform:rotate(360deg)}}';
+                document.head.appendChild(s);
+            }
+        } else {
+            btn.innerHTML = btn.dataset._orig || btn.innerHTML;
+            btn.disabled = false;
+            delete btn.dataset._orig;
+        }
+    }
+
+    /* ---------- Update UI after response ---------- */
+    function applyButtonState(btn, isBanned) {
+        if (!btn) return;
+        btn.dataset.banned = isBanned ? '1' : '0';
+        btn.style.background = isBanned ? '#ef4444' : '#6b7280';
+        btn.style.color = '#fff';
+        btn.textContent = isBanned ? ('{{ __("messages.admin.unban") ?? "Unban" }}') : ('{{ __("messages.admin.ban") ?? "Ban" }}');
+    }
+
+    function applyCounts(userId, raw) {
+        if (!raw) return;
+        const ops = raw.ops_count ?? (raw.data && raw.data.ops_count);
+        const msgs = raw.msgs_count ?? (raw.data && raw.data.msgs_count);
+        if (typeof ops !== 'undefined') {
+            const el = document.getElementById('ops-count-' + userId);
+            if (el) el.textContent = ops;
+        }
+        if (typeof msgs !== 'undefined') {
+            const el2 = document.getElementById('msgs-count-' + userId);
+            if (el2) el2.textContent = msgs;
+        }
+    }
+
+    /* ---------- Single request executor ---------- */
+    async function doBanRequest(payload) {
+        try {
+            const res = await fetch('/admin/ban-unban', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            let json = {};
+            try { json = await res.json(); } catch (e) { json = {}; }
+
+            // Normalize success check: controller returns { status: 'success', ... }
+            const ok = res.ok && (String(json.status).toLowerCase() === 'success' || json.success === true);
+
+            if (!ok) {
+                // if validation errors
+                if (json.errors) {
+                    const errs = [];
+                    Object.values(json.errors).forEach(arr => { if (Array.isArray(arr)) errs.push(...arr); });
+                    if (errs.length) {
+                        showToast(errs.join(', '), 'error');
+                        return { ok: false, raw: json };
+                    }
+                }
+                showToast(json.message || '{{ __("messages.admin.error") ?? "Error" }}', 'error');
+                return { ok: false, raw: json };
+            }
+
+            // success
+            showToast(json.message || '{{ __("messages.admin.success") ?? "Success" }}', 'success');
+
+            return { ok: true, raw: json };
+        } catch (err) {
+            console.error('Ban request failed', err);
+            showToast('{{ __("messages.admin.server_error") ?? "Server error" }}', 'error');
+            return { ok: false, error: err };
+        }
+    }
+
+    /* ---------- Attach click handlers to ban buttons ---------- */
+    function attachBanButtons() {
+        document.querySelectorAll('.user-ban-btn').forEach(btn => {
+            if (btn.dataset.bound === '1') return; // already bound
+            btn.dataset.bound = '1';
+
+            btn.addEventListener('click', async function (e) {
+                if (btn.dataset.loading === '1') return;
+                const userId = btn.dataset.userId || btn.getAttribute('data-user-id') || btn.getAttribute('data-userid');
+                if (!userId) return;
+
+                const isBanned = btn.dataset.banned === '1';
+                btn.dataset.loading = '1';
+                setBtnLoading(btn, true);
+
+                const payload = {
+                    bannable_type: 'user',
+                    bannable_id: parseInt(userId, 10),
+                };
+                if (isBanned) payload.action = 'unban';
+
+                const result = await doBanRequest(payload);
+
+                if (result && result.ok) {
+                    // controller returns json.data.is_banned
+                    const raw = result.raw || {};
+                    const isBannedResp = (raw.data && typeof raw.data.is_banned !== 'undefined') ? raw.data.is_banned : null;
+
+                    // if server provided definite flag, use it; otherwise toggle locally
+                    const nowBanned = (isBannedResp !== null && typeof isBannedResp !== 'undefined') ? !!isBannedResp : !isBanned;
+
+                    applyButtonState(btn, nowBanned);
+                    applyCounts(userId, raw);
+                }
+
+                setBtnLoading(btn, false);
+                delete btn.dataset.loading;
+            });
+        });
+    }
+
+    attachBanButtons();
+
+    /* ---------- Activate phone (select change) ---------- */
+    document.querySelectorAll('.phone-select').forEach(sel => {
+        sel.addEventListener('change', async function() {
+            const phoneId = this.value;
+            const userId = this.dataset.userId;
+            if (!phoneId || !userId) return;
+            const url = `/users/${userId}/phones/${phoneId}/activate`;
+
+            const orig = this;
+            orig.disabled = true;
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !(String(data.status).toLowerCase() === 'success' || data.success === true)) {
+                    showToast(data.message || '{{ __("messages.admin.error_phone_activate") ?? "Failed to activate phone" }}', 'error');
+                } else {
+                    showToast(data.message || '{{ __("messages.admin.phone_activated") ?? "Phone activated" }}', 'success');
+                    const opt = orig.options[orig.selectedIndex];
+                    if (opt && data.data && typeof data.data.is_banned !== 'undefined') opt.setAttribute('data-phone-banned', data.data.is_banned ? '1' : '0');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('{{ __("messages.admin.server_error") ?? "Server error" }}', 'error');
+            } finally {
+                orig.disabled = false;
+            }
+        });
+    });
+
+    /* ---------- Confirm modal logic (reused) ---------- */
+    (function() {
+        const overlay = document.getElementById('confirmOverlay');
+        const step1 = document.getElementById('confirmStep1');
+        const step2 = document.getElementById('confirmStep2');
+        const desc = document.getElementById('confirmDesc');
+        const input = document.getElementById('confirmInput');
+        const finalBtn = document.getElementById('confirmFinal');
+
+        let activeConfig = null;
+
+        function openConfirm(config) {
+            activeConfig = Object.assign({
+                action: '#',
+                method: 'POST',
+                verb: '{{ __("messages.admin.confirm") ?? "Confirm" }}',
+                requireName: '',
+                text: ''
+            }, config || {});
+
+            // show description
+            const text = activeConfig.text || activeConfig.requireName || activeConfig.verb;
+
+            if (activeConfig.requireName) {
+                step1.style.display = 'none';
+                step2.style.display = 'block';
+                input.value = '';
+                finalBtn.disabled = true;
+            } else {
+                step1.style.display = 'block';
+                step2.style.display = 'none';
+            }
+
+            overlay.style.display = 'flex';
+        }
+
+        function closeConfirm() {
+            overlay.style.display = 'none';
+            activeConfig = null;
+        }
+
+        document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
+        document.getElementById('confirmContinue').addEventListener('click', function() {
+            if (!activeConfig) return;
+            if (activeConfig.requireName) {
+                step1.style.display = 'none';
+                step2.style.display = 'block';
+                input.focus();
+            } else {
+                doSubmit();
+            }
         });
 
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || !data.success) {
-            showToast(data.message || '{{ __("messages.admin.error") ?? "Error" }}', 'error');
-            return data;
-        }
-
-        showToast(data.message || '{{ __("messages.admin.success") ?? "Success" }}', 'success');
-
-        // Update UI for user button if present
-        const userBtn = document.getElementById(`user-ban-btn-${id}`);
-        if (userBtn && type === 'user') {
-            if (data.is_banned) {
-                userBtn.textContent = '{{ __("messages.admin.unban") ?? "Unban" }}';
-                userBtn.style.background = '#ef4444';
-            } else {
-                userBtn.textContent = '{{ __("messages.admin.ban") ?? "Ban" }}';
-                userBtn.style.background = '#6b7280';
-            }
-        }
-
-        return data;
-    } catch (err) {
-        console.error(err);
-        showToast('{{ __("messages.admin.server_error") ?? "Server error" }}', 'error');
-        return null;
-    }
-}
-
-function handleUserBanButton(userId, userBanned) {
-    const btn = document.getElementById(`user-ban-btn-${userId}`);
-    if (!btn) return;
-    btn.disabled = true;
-    if (userBanned) {
-        doBanAction('user', userId, 'unban').finally(() => btn.disabled = false);
-    } else {
-        // immediate ban (no schedule)
-        doBanAction('user', userId).finally(() => btn.disabled = false);
-    }
-}
-
-/* ---------- Activate phone (select change) ---------- */
-// expects route POST /users/{user}/phones/{phone}/activate returning { success: true }
-document.querySelectorAll('.phone-select').forEach(sel => {
-    sel.addEventListener('change', function() {
-        const phoneId = this.value;
-        const userId = this.dataset.userId;
-        if (!phoneId || !userId) return;
-        const url = `/users/${userId}/phones/${phoneId}/activate`;
-
-        const orig = this;
-        orig.disabled = true;
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json'
-            }
-        }).then(async res => {
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) {
-                showToast(data.message || '{{ __("messages.admin.error_phone_activate") ?? "Failed to activate phone" }}', 'error');
-            } else {
-                showToast(data.message || '{{ __("messages.admin.phone_activated") ?? "Phone activated" }}', 'success');
-                const opt = orig.options[orig.selectedIndex];
-                if (opt && data.is_banned !== undefined) opt.setAttribute('data-phone-banned', data.is_banned ? '1' : '0');
-            }
-        }).catch(() => {
-            showToast('{{ __("messages.admin.server_error") ?? "Server error" }}', 'error');
-        }).finally(() => orig.disabled = false);
-    });
-});
-
-/* ---------- Confirm modal logic (reused) ---------- */
-(function() {
-    const overlay = document.getElementById('confirmOverlay');
-    const step1 = document.getElementById('confirmStep1');
-    const step2 = document.getElementById('confirmStep2');
-    const desc = document.getElementById('confirmDesc');
-    const input = document.getElementById('confirmInput');
-    const finalBtn = document.getElementById('confirmFinal');
-
-    let activeConfig = null;
-
-    function openConfirm(config) {
-        activeConfig = Object.assign({
-            action: '#',
-            method: 'POST',
-            verb: '{{ __("messages.admin.confirm") ?? "Confirm" }}',
-            requireName: '',
-            text: ''
-        }, config || {});
-
-        // show description
-        const text = activeConfig.text || activeConfig.requireName || activeConfig.verb;
-        desc.textContent = `{{ __('messages.admin.users.confirm') }}`;
-
-        if (activeConfig.requireName) {
-            step1.style.display = 'none';
-            step2.style.display = 'block';
-            input.value = '';
-            finalBtn.disabled = true;
-        } else {
-            step1.style.display = 'block';
+        document.getElementById('confirmBack').addEventListener('click', function() {
             step2.style.display = 'none';
-        }
+            step1.style.display = 'block';
+        });
 
-        overlay.style.display = 'flex';
-    }
+        input.addEventListener('input', function() {
+            finalBtn.disabled = (input.value !== (activeConfig.requireName || ''));
+        });
 
-    function closeConfirm() {
-        overlay.style.display = 'none';
-        activeConfig = null;
-    }
-
-    document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
-    document.getElementById('confirmContinue').addEventListener('click', function() {
-        if (!activeConfig) return;
-        if (activeConfig.requireName) {
-            step1.style.display = 'none';
-            step2.style.display = 'block';
-            input.focus();
-        } else {
+        finalBtn.addEventListener('click', function() {
+            if (!activeConfig) return;
+            if (activeConfig.requireName && input.value !== activeConfig.requireName) {
+                showToast('{{ __("messages.admin.confirm_mismatch") ?? "Name mismatch" }}', 'error');
+                return;
+            }
             doSubmit();
-        }
-    });
+        });
 
-    document.getElementById('confirmBack').addEventListener('click', function() {
-        step2.style.display = 'none';
-        step1.style.display = 'block';
-    });
+        function doSubmit() {
+            if (!activeConfig) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = activeConfig.action;
+            form.style.display = 'none';
 
-    input.addEventListener('input', function() {
-        finalBtn.disabled = (input.value !== (activeConfig.requireName || ''));
-    });
+            const token = document.createElement('input');
+            token.type = 'hidden'; token.name = '_token'; token.value = csrfToken;
+            form.appendChild(token);
 
-    finalBtn.addEventListener('click', function() {
-        if (!activeConfig) return;
-        if (activeConfig.requireName && input.value !== activeConfig.requireName) {
-            showToast('{{ __("messages.admin.confirm_mismatch") ?? "Name mismatch" }}', 'error');
-            return;
-        }
-        doSubmit();
-    });
+            const method = (activeConfig.method || 'POST').toUpperCase();
+            if (method !== 'POST') {
+                const m = document.createElement('input'); m.type='hidden'; m.name='_method'; m.value=method; form.appendChild(m);
+            }
 
-    function doSubmit() {
-        if (!activeConfig) return;
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = activeConfig.action;
-        form.style.display = 'none';
-
-        const token = document.createElement('input');
-        token.type = 'hidden'; token.name = '_token'; token.value = csrfToken;
-        form.appendChild(token);
-
-        const method = (activeConfig.method || 'POST').toUpperCase();
-        if (method !== 'POST') {
-            const m = document.createElement('input'); m.type='hidden'; m.name='_method'; m.value=method; form.appendChild(m);
+            document.body.appendChild(form);
+            form.submit();
         }
 
-        document.body.appendChild(form);
-        form.submit();
-    }
+        // Attach to .js-confirm-action elements
+        document.addEventListener('click', function(e) {
+            const el = e.target.closest('.js-confirm-action');
+            if (!el) return;
+            e.preventDefault();
 
-    // Attach to .js-confirm-action elements
-    document.addEventListener('click', function(e) {
-        const el = e.target.closest('.js-confirm-action');
-        if (!el) return;
-        e.preventDefault();
+            const cfg = {
+                action: el.getAttribute('data-action') || el.getAttribute('href') || '#',
+                method: el.getAttribute('data-method') || 'POST',
+                verb: el.getAttribute('data-verb') || '',
+                requireName: el.getAttribute('data-require-name') || '',
+                text: el.getAttribute('data-text') || ''
+            };
+            openConfirm(cfg);
+        });
 
-        const cfg = {
-            action: el.getAttribute('data-action') || el.getAttribute('href') || '#',
-            method: el.getAttribute('data-method') || 'POST',
-            verb: el.getAttribute('data-verb') || '',
-            requireName: el.getAttribute('data-require-name') || '',
-            text: el.getAttribute('data-text') || ''
-        };
-        openConfirm(cfg);
+        window.openConfirm = openConfirm;
+    })();
+
+    /* ---------- Toggle all helper ---------- */
+    document.getElementById('toggleAll')?.addEventListener('click', function() {
+        const list = document.getElementById('usersList');
+        if (!list) return;
+        const lines = list.querySelectorAll('.user-line');
+        lines.forEach(l => {
+            l.style.background = l.style.background === 'transparent' ? 'var(--card)' : 'transparent';
+        });
     });
 
-    window.openConfirm = openConfirm;
-})();
+    /* ---------- Instant client-side search ---------- */
+    document.getElementById('usersSearch')?.addEventListener('input', function(e) {
+        // if user pressed Enter we want normal form submit; else instant filter
+        if (e.inputType === 'insertLineBreak') return;
 
-/* ---------- Toast helper ---------- */
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-    const t = document.createElement('div');
-    t.innerHTML = message;
-    Object.assign(t.style, {
-        background: type === 'success' ? '#16a34a' : '#ef4444',
-        color: '#fff',
-        padding: '8px 12px',
-        borderRadius: '8px',
-        marginTop: '8px',
-        boxShadow: '0 6px 18px rgba(0,0,0,0.2)',
-        fontWeight: 700,
-        maxWidth: '320px',
-        opacity: '0',
-        transform: 'translateY(-6px)',
-        transition: 'opacity .2s, transform .2s'
+        const q = this.value.trim().toLowerCase();
+        const rows = document.querySelectorAll('#usersList .user-line');
+        rows.forEach(r => {
+            const txt = (r.querySelector('.user-name')?.textContent || r.textContent || '').toLowerCase();
+            r.style.display = txt.includes(q) ? 'flex' : 'none';
+        });
     });
-    container.appendChild(t);
-    requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
-    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(-6px)'; setTimeout(()=>t.remove(),250); }, 3000);
-}
 
-/* ---------- Quick UI helpers ---------- */
-document.getElementById('toggleAll')?.addEventListener('click', function() {
-    const list = document.getElementById('usersList');
-    if (!list) return;
-    const lines = list.querySelectorAll('.user-line');
-    lines.forEach(l => {
-        l.style.background = l.style.background === 'transparent' ? 'var(--card)' : 'transparent';
-    });
-});
-
-/* ---------- Simple client-side search (instant, doesn't submit) ---------- */
-document.getElementById('usersSearch')?.addEventListener('input', function(e) {
-    // if user pressed Enter we want normal form submit; else instant filter
-    if (e.inputType === 'insertLineBreak') return;
-
-    const q = this.value.trim().toLowerCase();
-    const rows = document.querySelectorAll('#usersList .user-line');
-    rows.forEach(r => {
-        const txt = (r.querySelector('.user-name')?.textContent || r.textContent || '').toLowerCase();
-        r.style.display = txt.includes(q) ? 'flex' : 'none';
-    });
-});
+}); // DOMContentLoaded
 </script>
 @endsection

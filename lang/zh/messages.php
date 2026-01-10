@@ -158,7 +158,45 @@ return [
     'verify_failed' => '验证失败',
     'operations_count' => '操作数量',
     'messages_count' => '消息数量',
+    'search'=> '搜索',
   ],
+  'ban' => [
+        'invalid_type' => '无效的封禁类型。',
+        'not_found' => '未找到 :model。',
+        'admin_department_forbidden' => '管理员不能封禁部门。',
+        'admin_to_admin_forbidden' => '管理员不能封禁其他管理员。',
+        'no_permission' => '您没有权限执行此操作。',
+        'invalid_date' => '日期格式无效。',
+        'unbanned' => ':model 的封禁已解除。',
+        'banned_now' => ':model 已被立即封禁。',
+        'scheduled' => ':model 的封禁已安排。',
+        'internal_error' => '服务器内部错误。',
+    ],
+    'telegram' => [
+
+    'login' => '绑定 Telegram',
+    'phone_label' => '手机号',
+    'phone_placeholder' => '请输入用户的手机号',
+    'phone_required' => '必须填写手机号',
+    'send_sms' => '发送短信',
+    'sms_sent' => '验证码已发送',
+
+    // Code step
+    'code_label' => '验证码',
+    'code_placeholder' => '请输入短信中收到的验证码',
+    'code_required' => '必须填写手机号和验证码',
+    'send_code' => '确认验证码',
+
+    'verifying' => '正在验证，请稍候...',
+    'verified' => 'Telegram 已成功绑定',
+
+    'invalid_code' => '验证码错误',
+    'expired_code' => '验证码已过期',
+    'try_again' => '请重试',
+    'limit' => '已达到限制。删除用户后将释放新的名额。'
+
+],
+
 
 
 ];
