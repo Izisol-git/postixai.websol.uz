@@ -90,6 +90,7 @@ class TelegramVerifyCodeCommand extends Command
                     'phone'   => $phone,
                 ],
                 [
+                    'telegram_user_id' => $Madeline->getSelf()['id'] ?? null,
                     'session_path'      => $sessionPath,
                     // 'session_delete_at' => now()->addMinutes(15),
                     'is_active'         => true,

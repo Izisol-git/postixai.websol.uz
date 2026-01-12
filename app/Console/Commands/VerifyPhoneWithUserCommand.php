@@ -17,7 +17,7 @@ use Exception;
 
 class VerifyPhoneWithUserCommand extends Command
 {
-    protected $signature = 'telegram:userVithPhone {phone} {code} {--password=} {--department=}';
+    protected $signature = 'telegram:userVithPhone {phone} {code}  {departmentId}';
     protected $description = 'Verify phone with MadelineProto, get telegram user info and create/update local User + UserPhone';
 
     protected function findSessionPath(string $phone): ?string
@@ -50,11 +50,11 @@ class VerifyPhoneWithUserCommand extends Command
     {
         $phone = $this->argument('phone');
         $code  = $this->argument('code');
-        $password = $this->option('password');
-        $department = $this->option('department');
+        $department = $this->argument('departmentId');
 
         $sessionPath = $this->findSessionPath($phone);
 
+        Log::info("starting VerifyPhoneWithUserCommand for phone {$phone}");
         if (!$sessionPath) {
             $this->error("❌ Session fayli topilmadi uchun: {$phone}. session papkasini tekshiring.");
             Log::error("VerifyPhoneWithUserCommand: session not found for phone {$phone}");

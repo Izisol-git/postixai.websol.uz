@@ -208,8 +208,8 @@ return [
         'invalid_code' => 'Tasdiqlash kodi noto‘g‘ri',
         'expired_code' => 'Tasdiqlash kodi muddati tugagan',
         'try_again' => 'Qayta urinib ko‘ring',
-        'limit' => 'Limitga yetildi. Foydalanuvchi o‘chirilsa, yangi slot bo‘shaydi.'
-
+        'limit' => 'Limitga yetildi. Foydalanuvchi o‘chirilsa, yangi slot bo‘shaydi.',
+        'user_exists' => 'Ushbu tizimda ushbu telefon raqamiga ega foydalanuvchi allaqachon mavjud.',
     ],
 
 ];

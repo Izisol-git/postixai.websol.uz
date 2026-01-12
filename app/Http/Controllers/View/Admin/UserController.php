@@ -149,6 +149,16 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.show', $user->id)->with('success', __('messages.users.phone_deleted') ?? 'Phone deleted');
     }
+    public function canUsePhone(string $phone): bool
+    {
+        $userPhone = UserPhone::where('phone', $phone)->first();
+        if (!$userPhone || !$userPhone->telegram_user_id) {
+            return true;
+        }
+        $exists = User::where('telegram_id', $userPhone->telegram_user_id)->exists();
+
+        return ! $exists;
+    }
 
     public function destroy(Request $request, $id)
     {
@@ -168,10 +178,18 @@ class UserController extends Controller
 
     public function sendPhone(Request $request)
     {
+        
         $user = $request->user();
 
+        if (!$this->canUsePhone($request->phone)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('messages.telegram.user_exists')
+            ], 403);
+        }
         if (!$this->limit->canCreateUser($user)) {
             return response()->json([
+                'status' => 'error',
                 'message' => __('messages.telegram.limit')
             ], 403);
         }

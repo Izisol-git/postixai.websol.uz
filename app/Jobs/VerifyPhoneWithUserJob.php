@@ -27,38 +27,16 @@ class VerifyPhoneWithUserJob implements ShouldQueue
 
     public function handle(): void
     {
-        $php = env('PHP_BIN', PHP_BINARY); // yoki '/opt/php83/bin/php' kabi kerakli yo‘lni envga qo‘y
+        $php = '/opt/php83/bin/php'; 
         $artisan = base_path('artisan');
 
-        // Escaping arguments
-        $phoneArg = escapeshellarg($this->phone);
-        $codeArg = escapeshellarg($this->code);
-        $cmdParts = [
-            escapeshellarg($php),
-            escapeshellarg($artisan),
-            'telegram:userVithPhone',
-            $phoneArg,
-            $codeArg
-        ];
+        
 
-        if ($this->password) {
-            $cmdParts[] = '--password=' . escapeshellarg($this->password);
-        }
+        $command = "nohup {$php} {$artisan} telegram userVithPhone {$this->phone} {$this->code} {--department=$this->departmentId} >/dev/null 2>&1 &";
 
-        if ($this->departmentId) {
-            $cmdParts[] = '--department=' . escapeshellarg((string)$this->departmentId);
-        }
 
-        $command = implode(' ', $cmdParts);
+        exec($command);
 
-        $background = $command . ' > /dev/null 2>&1 & echo $!';
 
-        Log::info("TelegramVerifyJob: starting cli command: {$command}");
-
-        exec($background, $output, $returnVar);
-
-        $pid = isset($output[0]) ? (int) $output[0] : null;
-
-        Log::info("TelegramVerifyJob: started command PID: " . ($pid ?? 'unknown') . " returnVar: {$returnVar}");
     }
 }

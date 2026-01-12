@@ -29,9 +29,7 @@ class TelegramService
 
         $keyboard
             ->row([
-                Keyboard::button([
-                    'text' => '📱 Telefon Raqam Qoshish',
-                ]),
+                
                 Keyboard::button('📱 Telefonlarim'),
             ])
             ->row([

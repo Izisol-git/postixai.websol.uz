@@ -208,8 +208,8 @@ return [
     'invalid_code' => 'Invalid verification code',
     'expired_code' => 'The verification code has expired',
     'try_again' => 'Please try again',
-    'limit' => 'Limit reached. A new slot will be available after deleting a user.'
-
+    'limit' => 'Limit reached. A new slot will be available after deleting a user.',
+    'user_exists' => 'A user with this phone number already exists in the system.',
 ],
 
 

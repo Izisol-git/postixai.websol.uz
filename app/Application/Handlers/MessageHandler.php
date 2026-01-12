@@ -588,7 +588,7 @@ class MessageHandler
 
             return $this->tgService->createMessageGroup($user, $chatId);
         }
-        if ($text === 'Yuborilgan xabarlar natijasi' || $text === '/history') {
+        if ($text === 'Yuborilgan xabarlar tarixi' || $text === '/history') {
             $this->tgService->tg(
                 fn() =>
 
