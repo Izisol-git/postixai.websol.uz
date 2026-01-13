@@ -91,6 +91,8 @@ return [
     'cancel_success' => '작업 #:id 가 취소되었습니다. :count 개 메시지 상태 변경',
     'cancel_failed' => '작업 #:id 취소 실패',
     'error_no_permission' => '이 작업을 수행할 권한이 없습니다',
+    'cancel'=>'취소',
+    'continue'=>'계속',
   ],
   'login' => [
     'title' => '로그인',

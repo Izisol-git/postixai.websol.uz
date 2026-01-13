@@ -95,6 +95,8 @@ return [
         'cancel_success' => 'Operatsiya #:id bekor qilindi. :count ta xabar holati o‘zgardi',
         'cancel_failed' => 'Operatsiya #:id ni bekor qilishda xatolik',
         'error_no_permission' => 'Sizda bu amalni bajarish ruxsati yo‘q',
+        'cancel'=>'Bekor qilish',   
+        'continue'=>'Davom etish',
     ],
     'login' => [
         'title' => 'Kirish',
@@ -183,10 +185,6 @@ return [
     ],
 
 
-
-
-
-
     'telegram' => [
 
         'login' => 'Telegram bilan bog‘lash',
@@ -213,5 +211,8 @@ return [
         'already_in_progress' => 'Ushbu telefon raqamiga ega foydalanuvchi bilan Telegram kirish jarayoni allaqachon davom etmoqda.',
         'started' => 'Telegram bilan bog‘lash jarayoni boshlandi. Iltimos, biroz kuting.',
     ],
+    'find' => [
+        'filter_all_users' => '— Barcha foydalanuvchilar —',
+    ]
 
 ];

@@ -91,6 +91,8 @@ return [
     'cancel_success' => 'Operation #:id canceled. :count messages updated',
     'cancel_failed' => 'Failed to cancel operation #:id',
     'error_no_permission' => 'You do not have permission to perform this action',
+    'cancel'=>'Cancel',
+    'continue'=>'Continue',
   ],
   'login' => [
     'title' => 'Login',

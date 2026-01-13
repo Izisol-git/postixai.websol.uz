@@ -33,12 +33,12 @@ class TelegramService
                 Keyboard::button('📱 Telefonlarim'),
             ])
             ->row([
-                Keyboard::button('Cataloglar'),
-                Keyboard::button('Yuborilgan xabarlar tarixi'),
+                Keyboard::button('📂 Cataloglar'),
+                Keyboard::button('📊 Yuborilgan xabarlar tarixi'),
             ])
             ->row([
                 Keyboard::button('Qollanma'),
-                Keyboard::button('Offerta'),
+                Keyboard::button('Oferta'),
             ]);
         if ($hasActivePhone) {
             $keyboard->row([
@@ -100,6 +100,90 @@ class TelegramService
 
     return $keyboard;
 }
+    // Yangi/yangilangan method: buildCatalogKeyboardForSend
+public function buildCatalogKeyboardForSend(int $userId, int $page = 1)
+{
+    // 1) Avval userning o'z kataloglari, keyin departmentdagi users kataloglari:
+    $user = User::with('department.users')->find($userId);
+
+    $userIds = [$userId];
+
+    if ($user && $user->department) {
+        // department->users may include the user himself; pluck va unique qilish
+        $deptUserIds = $user->department->users->pluck('id')->toArray();
+        $userIds = array_values(array_unique(array_merge($userIds, $deptUserIds)));
+    }
+
+    // 2) Cataloglarni yuklash, user relation bilan (owner nomi uchun)
+    $catalogsCollection = Catalog::with('user')
+        ->whereIn('user_id', $userIds)
+        ->orderBy('id')
+        ->get();
+
+    // Map qilib arrayga o'tkazamiz va owner nomini qo'shamiz
+    $catalogs = $catalogsCollection->map(function ($c) {
+        $ownerName = $c->user->name ?? $c->user->username ?? ('user#' . $c->user_id);
+        return [
+            'id' => $c->id,
+            'title' => $c->title,
+            'owner_name' => $ownerName,
+            'user_id' => $c->user_id,
+        ];
+    })->toArray();
+
+    // 3) Pagination va keyboard qurish
+    $perPage = 10;
+    $chunks = array_chunk($catalogs, $perPage);
+    $pageIndex = max(0, $page - 1);
+    $pageCatalogs = $chunks[$pageIndex] ?? [];
+
+    $keyboard = (new Keyboard)->inline();
+
+    // Catalog tugmalari: har bir tugmada Title (Owner)
+    $catalogButtons = [];
+    foreach ($pageCatalogs as $catalog) {
+        $text = $catalog['title'] . ' (' . $catalog['owner_name'] . ')';
+        $catalogButtons[] = Keyboard::inlineButton([
+            'text' => $text,
+            'callback_data' => 'catalog_start_' . $catalog['id']
+        ]);
+    }
+
+    // 2-ta tugma bir qatorda
+    foreach (array_chunk($catalogButtons, 2) as $chunk) {
+        $keyboard->row($chunk);
+    }
+
+    // Navigation tugmalari (prefikslar o'zgartirilgan)
+    $navButtons = [];
+    $totalPages = count($chunks);
+    if ($page > 1) {
+        $navButtons[] = Keyboard::inlineButton([
+            'text' => '⬅ Previous',
+            'callback_data' => 'catalog_send_page_' . ($page - 1)
+        ]);
+    }
+    if ($page < $totalPages) {
+        $navButtons[] = Keyboard::inlineButton([
+            'text' => 'Next ➡',
+            'callback_data' => 'catalog_send_page_' . ($page + 1)
+        ]);
+    }
+    if ($navButtons) {
+        $keyboard->row($navButtons);
+    }
+
+    // Bekor qilish tugmasi
+    $keyboard->row([
+        Keyboard::inlineButton([
+            'text' => '❌ Catalog tanlashni bekor qilish',
+            'callback_data' => 'cancel_catalog'
+        ])
+    ]);
+
+    return $keyboard;
+}
+
     public function buildCatalogKeyboard(int $userId, int $page = 1)
     {
         // Faqat user_id bo'yicha filtr
@@ -108,7 +192,7 @@ class TelegramService
             ->get()
             ->toArray();
 
-        $perPage = 4;
+        $perPage = 10;
         $chunks = array_chunk($catalogs, $perPage);
         $pageCatalogs = $chunks[$page - 1] ?? [];
 
@@ -363,8 +447,8 @@ class TelegramService
 
         // Doimiy menu tugmalari
         $replyKeyboard->row([
-            Keyboard::button("Yuborilgan xabarlar tarixi"),
-            Keyboard::button("Cataloglar")
+            Keyboard::button("📊 Yuborilgan xabarlar tarixi"),
+            Keyboard::button("📂 Cataloglar")
         ])->row([
             Keyboard::button("Menyu")
         ]);

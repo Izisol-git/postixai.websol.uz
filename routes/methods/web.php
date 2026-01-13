@@ -6,8 +6,7 @@ Route::get('/', function () {
     return view('auth.login');
 });
 Route::get('/lang/{locale}', function ($locale) {
-    if (!in_array($locale, ['uz', 'ru', 'en', 'ko', 'zh']
-)) {
+    if (!in_array($locale, ['uz', 'ru', 'en', 'ko', 'zh', 'ja', 'ar', 'de', 'fr', 'es', 'it','ja','hi','tr' ])) {
         abort(400);
     }
 

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Department;
 use App\Models\MessageGroup;
 use Illuminate\Http\Request;
+use App\Models\MinutePackage;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,7 @@ use App\Http\Requests\UserStoreRequest;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\UserUpdateRequest;
 use App\Application\Services\UserService;
+use App\Models\Catalog;
 
 class UserController extends Controller
 {
@@ -25,19 +27,26 @@ class UserController extends Controller
      * Create form
      */
     public function create()
-    {
-        $user = Auth::user();
+{
+    $roles = Role::whereNot('name', 'superadmin')->get();
+    $departments = Department::all();
 
-        if ($user->role->name == 'superadmin') {
-            $roles = Role::all();
-            $departments = Department::all();
-        } elseif ($user->role->name == 'admin') {
-            $roles = Role::where('name', '!=', 'superadmin')->get();
-            $departments = Department::where('id', $user->department_id)->get();
-        }
+    $catalogs = DB::table('catalogs')
+        ->join('users', 'users.id', '=', 'catalogs.user_id')
+        ->leftJoin('departments', 'departments.id', '=', 'users.department_id')
+        ->select(
+            'catalogs.id',
+            'catalogs.title',
+            DB::raw('COALESCE(departments.name, users.name) as owner') // department bo‘lsa department.name, aks holda user.name
+        )
+        ->get();
 
-        return view('user.create', compact('roles', 'departments'));
-    }
+    return view('user.create', compact('roles', 'departments', 'catalogs'));
+}
+
+
+
+
 
     /**
      * Store user
@@ -48,7 +57,7 @@ class UserController extends Controller
         $data = $request->validated();
 
         $user = $this->userService->store($data, $authUser);
-        
+
         // request ichidagi department_id asosida redirect
         $departmentId = $request->input('department_id');
         if ($request->wantsJson()) {
@@ -174,20 +183,21 @@ class UserController extends Controller
 public function edit(User $user)
 {
     $authUser = Auth::user();
+    $user->load('minuteAccess');
+    $roles = Role::whereNot('name', 'superadmin')->get();
+    $departments = Department::all();
 
-    // Roles va departments autentikatsiyaga ko'ra filtrlash
-    if ($authUser->role->name == 'superadmin') {
-        $roles = Role::all();
-        $departments = Department::all();
-    } elseif ($authUser->role->name == 'admin') {
-        $roles = Role::where('name', '!=', 'superadmin')->get();
-        $departments = Department::where('id', $authUser->department_id)->get();
-    } else {
-        $roles = Role::where('id', $user->role_id)->get(); // minimal
-        $departments = Department::where('id', $user->department_id)->get();
-    }
+    $catalogs = DB::table('catalogs')
+        ->join('users', 'users.id', '=', 'catalogs.user_id')
+        ->leftJoin('departments', 'departments.id', '=', 'users.department_id')
+        ->select(
+            'catalogs.id',
+            'catalogs.title',
+            DB::raw('COALESCE(departments.name, users.name) as owner')
+        )
+        ->get();
 
-    return view('user.edit', compact('user', 'roles', 'departments'));
+    return view('user.edit', compact('user', 'roles', 'departments', 'catalogs'));
 }
 
 /**

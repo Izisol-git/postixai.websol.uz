@@ -39,6 +39,10 @@ class UserUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique('users', 'telegram_id')->ignore($userId),
             ],
+            'max_users'=> 'nullable|integer',
+            'has_extra_minutes' => 'nullable|boolean',
+            'catalog_ids' => 'nullable|array',
+            'catalog_ids.*' => 'integer|exists:catalogs,id',
         ];
     }
 

@@ -91,11 +91,12 @@ class MessageHandler
                 $user->value = null;
                 $user->save();
 
+
                 $keyboard = Keyboard::make()
                     ->setResizeKeyboard(true)
                     ->setOneTimeKeyboard(true)
                     ->row([
-                        Keyboard::button('Cataloglar'),
+                        Keyboard::button('📂 Cataloglar'),
                     ]);
 
                 $this->tgService->tg(
@@ -103,11 +104,23 @@ class MessageHandler
                     $this->telegram->sendMessage([
                         'chat_id' => $chatId,
                         'text' => "✅ Catalog yaratish yakunlandi!",
-                        'reply_markup' => $keyboard
+                        'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard(true)
                     ])
                 );
             } else {
+                if (!str_starts_with($text, '@') || strlen($text) < 2) {
 
+                    $this->tgService->tg(
+                        fn() =>
+                        $this->telegram->sendMessage([
+                            'chat_id' => $chatId,
+                            'text' => "❌ *Xatolik!*\n\nPeer faqat `@username` formatida bo‘lishi kerak.\n\nMisol:\n`@example_channel`",
+                            'parse_mode' => 'Markdown'
+                        ])
+                    );
+
+                    return 'ok';
+                }
                 $catalog = \App\Models\Catalog::find($user->value);
 
                 $peers = json_decode($catalog->peers ?? '[]', true);
@@ -146,6 +159,71 @@ class MessageHandler
                 );
             }
         }
+        if ($user && $user->state === 'editing_catalog_name') {
+            $catalogId = (int) $user->value;
+            $catalog = Catalog::where('id', $catalogId)
+                ->where('user_id', $user->id)
+                ->first();
+            if ($catalog) {
+                $catalog->title = $text;
+                $catalog->save();
+            }
+            $user->state = null;
+            $user->value = null;
+            $user->save();
+            $peers = json_decode($catalog->peers ?? '[]', true);
+
+                // 📌 Text
+                $text  = "📂 *Catalog:* {$catalog->title}\n\n";
+                $text .= "👥 *Peerlar:*\n";
+
+                if (empty($peers)) {
+                    $text .= "— Peerlar yo‘q\n";
+                } else {
+                    foreach ($peers as $i => $peer) {
+                        $text .= ($i + 1) . ". `{$peer}`\n";
+                    }
+                }
+
+                $text .= "\n📌 Peerlar soni: " . count($peers);
+                $text .= "\n\nQuyidagi amalni tanlang:";
+
+                // 🔘 Keyboard
+                $keyboard = (new Keyboard)->inline()
+                    ->row([
+                        Keyboard::inlineButton([
+                            'text' => '▶️ Xabar yuborish',
+                            'callback_data' => 'catalog_start_' . $catalog->id
+                    ]),
+                    Keyboard::inlineButton([
+                        'text' => '🗑 Catalogni o‘chirish',
+                        'callback_data' => 'catalog_delete_' . $catalog->id
+                    ])
+                ])
+                ->row([
+                    Keyboard::inlineButton([
+                        'text' => '✏️ Tahrirlash',
+                        'callback_data' => 'catalog_edit_' . $catalog->id
+                    ]),
+                    Keyboard::inlineButton([
+                        'text' => '⬅️ Orqaga',
+                        'callback_data' => 'catalog_page_1'
+                    ])
+                ]);
+
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => $text,
+                    'parse_mode' => 'Markdown',
+                    'reply_markup' => $keyboard
+                ])
+            );
+
+            return 'ok';
+        }
+        
         if (($text === '❌ Bekor qilish' && $user) || ($text === 'Menyu' && $user)) {
             return $this->tgService->cancelAuth($user, $chatId);
         }
@@ -192,7 +270,7 @@ class MessageHandler
 
             return;
         }
-        if (($text === 'Cataloglar' && $user) || ($text === '/catalogs' && $user)) {
+        if (($text === '📂 Cataloglar' && $user) || ($text === '/catalogs' && $user)) {
             $this->tgService->tg(fn() =>
 
             $this->telegram->sendMessage([
@@ -209,7 +287,7 @@ class MessageHandler
             $this->telegram->sendMessage([
                 'chat_id' => $chatId,
                 'text' => 'Iltimos, xabar yuboriladigan catalogni tanlang:',
-                'reply_markup' => $this->tgService->buildCatalogKeyboard($user->id, 1)
+                'reply_markup' => $this->tgService->buildCatalogKeyboardForSend($user->id, 1)
             ]));
 
             return 'ok';
@@ -588,7 +666,7 @@ class MessageHandler
 
             return $this->tgService->createMessageGroup($user, $chatId);
         }
-        if ($text === 'Yuborilgan xabarlar tarixi' || $text === '/history') {
+        if ($text === '📊 Yuborilgan xabarlar tarixi' || $text === '/history') {
             $this->tgService->tg(
                 fn() =>
 
@@ -622,7 +700,7 @@ class MessageHandler
                         "/start — Botni qayta ishga tushirish\n" .
                         "/history —  Yuborilgan habarlarni korish\n" .
                         "/phones — Telefonlarim\n" .
-                        "/catalogs — Cataloglar ro‘yxati\n" .
+                        "/catalogs — 📂 Cataloglar ro‘yxati\n" .
                         "/help — Yordam olish\n",
                     'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard(true)
 
@@ -641,51 +719,12 @@ class MessageHandler
             $this->tgService->handleGroupSelect($groupId, $chatId);
         }
         if ($text === 'Qollanma') {
-            $manualText = <<<EOT
-📘 *Qollanma*
 
-Botni ishlatish bo‘yicha bosqichma-bosqich ko‘rsatmalar:
+            $manualPath = resource_path('texts/manual.md');
 
-1️⃣ *Asosiy menyu*  
-Start tugmasini bosganingizdan so‘ng quyidagi tugmalar mavjud:  
-- 📱 Telefon Raqam Qoshish  
-- 📞 Mening Telefon Raqamlarim  
-- 🗂 Cataloglar  
-- 📊 Yuborilgan Xabarlar Natijasi  
-- 📖 Qollanma  
-- 📄 Offerta  
-
-2️⃣ *Telefon Raqam Qoshish*  
-- Tugmani bosganda telefon raqamingizni yozing: contact uslubida yoki +998901234567 formatida.  
-- Telefon raqam yuborilgandan so‘ng, bot sizga *2FA code* yuboradi. Telegram xavfsizligi tufayli kod ikkiga bo‘linadi:  
-  - Masalan, code: `12345`  
-  - Avval `12` ni yuboring, keyin `345` qismini yuboring.  
-- *Muhim:* Telegram akkauntingizda 2FA (ikki faktorli autentifikatsiya) **o‘chirilgan bo‘lishi kerak**. Agar 2FA yoqilgan bo‘lsa, kod ishlamaydi.
-- Telefon raqam qabul qilinadi va xabar keladi.  
-- Tasdiqlashga bir oz vaqt ketishi mumkin. Agar raqam Telefonlar ro‘yxatida faol ko‘rsatilmasa, qayta urinib ko‘ring.  
-- Telefon raqamni o‘chirish faqat shu tizimdan amalga oshiriladi; boshqa qurilmalarda raqam faoliyatini yo‘qotmaydi.  
-
-3️⃣ *Mening Telefon Raqamlarim*  
-- Tugmani bosganda foydalanuvchining barcha telefon raqamlari ro‘yxati ko‘rsatiladi.  
-- Raqamni tanlab, kerak bo‘lsa uni o‘chirish mumkin.  
-
-4️⃣ *Cataloglar*  
-- Tugmani bosganda yangi Catalog (papka) yaratishingiz mumkin va unga nom beriladi.  
-- Keyin guruhlar (peerlar) qo‘shiladi. Peerlar – bu Telegram username yoki group ID.  
-- Peerlarni qo‘shish jarayonida har bir qo‘shilgan element ostida `P.S @username` ko‘rsatiladi.  
-- Oxirida `/done` tugmasi bilan katalog yaratiladi va barcha peerlar tasdiqlanadi.  
-
-5️⃣ *Yuborilgan Xabarlar Natijasi*  
-- Oxirgi 10 ta yuborilgan xabar ro‘yxati ko‘rsatiladi.  
-- Jarayonda bo‘lgan xabarlar ham ko‘rinadi, ularning pastida “To‘xtatish” tugmasi mavjud.  
-- Har bir xabarda necha marta yuborilgani va qaysi papkaga yuborilgani ko‘rsatiladi.  
-- Agar telefon raqamlar ko‘p bo‘lsa, “Xabar Yuborish” tugmasi chiqadi.  
-  - Foydalanuvchi telefon raqamni tanlaydi, xabar papkasini tanlaydi, interval va necha marta yuborishni belgilaydi.  
-  - Keyin xabar yuboriladi. Natijalarni shu bo‘limda kuzatish mumkin.  
-
-6️⃣ *Qollanma*  
-- Bu bo‘lim botni ishlatish bo‘yicha batafsil tushuntirishlarni o‘z ichiga oladi (hozirgi matn).  
-EOT;
+            $manualText = file_exists($manualPath)
+                ? file_get_contents($manualPath)
+                : 'Qollanma topilmadi.';
 
             $this->tgService->tg(
                 fn() =>
@@ -696,7 +735,40 @@ EOT;
                     'reply_markup' => $this->tgService->cancelInlineKeyboard()
                 ])
             );
+
+            return 'ok';
         }
+        if ($text === 'Oferta') {
+
+            $ofertaPath = resource_path('texts/offer.md');
+
+            $ofertaText = file_exists($ofertaPath)
+                ? file_get_contents($ofertaPath)
+                : 'Oferta topilmadi.';
+
+            $keyboard = Keyboard::make()
+                ->setResizeKeyboard(true)
+                ->setOneTimeKeyboard(true);
+            $keyboard->row([
+                Keyboard::button([
+                    'text' => 'Oferta bilan tanishib chiqdim',
+                ])
+            ]);
+
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => $ofertaText,
+                    'parse_mode' => 'Markdown',
+                    'reply_markup' => $keyboard
+                ])
+            );
+
+            return 'ok';
+        }
+
+
         if ($text === 'Oferta bilan tanishib chiqdim') {
             $user->oferta_read = true;
             $user->save();
@@ -714,8 +786,8 @@ EOT;
                 fn() =>
                 $this->telegram->sendMessage([
                     'chat_id' => $chatId,
-                    'text' => 'Iltimos, telefon raqamingizni Contact tugmasi yordamida yoki +998991234567 formatida kiriting.',
-                    'reply_markup' => $this->tgService->cancelInlineKeyboard()
+                    'text' => 'Rahmat!',
+                    'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard()
                 ])
             );
         }

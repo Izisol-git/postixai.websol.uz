@@ -4,8 +4,11 @@ namespace App\Application\Services;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Catalog;
 use App\Exceptions\ApiException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Models\MinutePackage\UserMinuteAccess;
 
 class UserService
 {
@@ -32,24 +35,66 @@ class UserService
     }
 
     public function store(array $data, $authUser)
-    {   
-        if ($authUser->role->name === 'admin') {
-            $data['department_id'] = $authUser->department_id;
-            $userRole = Role::where('name', 'user')->first();
-            $data['role_id'] = $userRole->id;
-        }
+    {
+        return DB::transaction(function () use ($data, $authUser) {
 
-        if (!empty($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        }
+            if ($authUser->role->name === 'admin') {
+                $data['department_id'] = $authUser->department_id;
+                $userRole = Role::where('name', 'user')->first();
+                $data['role_id'] = $userRole->id;
+            }
 
-        $user = User::create($data);
-        if (isset($data['max_users']) && $data['max_users'] !== null) {
-        $user->limit()->create([
-            'max_users' => (int) $data['max_users'],
-        ]);
+            if (!empty($data['password'])) {
+                $data['password'] = Hash::make($data['password']);
+            } else {
+                unset($data['password']);
+            }
+
+            // ❗ BU MAYDONLARNI USER CREATE'DAN OLIB TASHLAYMIZ
+            $hasExtraMinutes = $data['has_extra_minutes'] ?? false;
+            $catalogIds = $data['catalog_ids'] ?? [];
+
+            unset($data['has_extra_minutes'], $data['catalog_ids']);
+
+            // 1️⃣ USER CREATE
+            $user = User::create($data);
+
+            // limit
+            if (isset($data['max_users'])) {
+                $user->limit()->create([
+                    'max_users' => (int) $data['max_users'],
+                ]);
+            }
+
+            // 2️⃣ MINUTE ACCESS
+            if ($hasExtraMinutes) {
+                UserMinuteAccess::create([
+                    'user_id' => $user->id,
+                    'is_active' => true,
+                ]);
+            }
+
+            // 3️⃣ CATALOG CLONE
+            if (!empty($catalogIds)) {
+                $this->cloneCatalogsForUser($catalogIds, $user->id, $authUser->id);
+            }
+
+            return $user->load(['role', 'department']);
+        });
     }
-        return $user->load(['role', 'department']);
+    protected function cloneCatalogsForUser(array $catalogIds, int $newUserId, int $createdBy)
+    {
+        $catalogs = Catalog::whereIn('id', $catalogIds)->get();
+
+        foreach ($catalogs as $catalog) {
+            Catalog::create([
+                'title'        => $catalog->title,
+                'description'  => $catalog->description ?? null,
+                'data'         => $catalog->data ?? null, // agar json bo‘lsa
+                'user_id'      => $newUserId,
+                'created_by'   => $createdBy, // optional
+            ]);
+        }
     }
 
     public function show(User $user)
@@ -58,22 +103,53 @@ class UserService
     }
 
     public function update(User $user, array $data, $authUser)
-    {
-        $this->ensureCanModify($authUser, $user);
+{
+    return DB::transaction(function () use ($user, $data, $authUser) {
 
-        if (!empty($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        }
-
+        // 1️⃣ Role va department cheklovi (admin faqat o'z department)
         if ($authUser->role->name === 'admin') {
             $data['department_id'] = $authUser->department_id;
             $userRole = Role::where('name', 'user')->first();
             $data['role_id'] = $userRole->id;
         }
 
+        // 2️⃣ Password hash qilish
+        if (!empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
+        }
+
+        // ❗ has_extra_minutes va catalog_ids ni alohida olish
+        $hasExtraMinutes = $data['has_extra_minutes'] ?? false;
+        $catalogIds = $data['catalog_ids'] ?? [];
+        unset($data['has_extra_minutes'], $data['catalog_ids']);
+
+        // 3️⃣ User update
         $user->update($data);
-        return $user->load(['role', 'department']);
-    }
+
+        // 4️⃣ MinuteAccess yangilash / yaratish
+        if ($hasExtraMinutes) {
+            $user->minuteAccess()->updateOrCreate(
+                ['user_id' => $user->id],
+                ['is_active' => true]
+            );
+        } else {
+            // agar checkbox o'chirilgan bo'lsa, relationni o'chirish yoki inactive qilish
+            if ($user->minuteAccess) {
+                $user->minuteAccess()->update(['is_active' => false]);
+            }
+        }
+
+        // 5️⃣ Catalog clone
+        if (!empty($catalogIds)) {
+            $this->cloneCatalogsForUser($catalogIds, $user->id, $authUser->id);
+        }
+
+        return $user->load(['role', 'department', 'minuteAccess']);
+    });
+}
+
 
     public function delete(User $user, $authUser)
     {

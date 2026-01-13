@@ -1,3 +1,4 @@
+{{-- resources/views/users/edit.blade.php --}}
 <!DOCTYPE html>
 <html lang="uz">
 
@@ -15,6 +16,8 @@
             --accent: #3b82f6;
             --yellow: #facc15;
             --danger: #ef4444;
+            --input-bg: #071827;
+            --input-border: rgba(255, 255, 255, 0.04);
         }
 
         body {
@@ -83,13 +86,13 @@
             color: var(--muted);
         }
 
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
+        input[type=text],
+        input[type=email],
+        input[type=password],
         select {
-            background: #071827;
+            background: var(--input-bg);
             color: var(--text);
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--input-border);
             border-radius: 8px;
             padding: 10px 12px;
             font-size: 0.95rem;
@@ -141,11 +144,10 @@
 
         .errors {
             background: rgba(239, 68, 68, 0.06);
-            border: 1px solid rgba(239, 68, 68, 0.12);
-            color: var(--danger);
-            padding: 10px 12px;
             border-radius: 8px;
+            padding: 10px;
             margin-bottom: 12px;
+            color: #ef4444;
         }
 
         .field-error {
@@ -154,10 +156,44 @@
             margin-top: 4px;
         }
 
-        .note {
-            color: var(--muted);
-            font-size: 0.9rem;
-            margin-top: 6px;
+        .dropdown {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .dropdown-button {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--input-border);
+            background: var(--input-bg);
+            cursor: pointer;
+        }
+
+        .dropdown-panel {
+            position: absolute;
+            left: 0;
+            right: 0;
+            margin-top: 8px;
+            background: var(--card);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 50;
+            max-height: 300px;
+            overflow: auto;
+            box-shadow: 0 6px 20px rgba(2, 6, 23, 0.6);
+        }
+
+        .checkbox-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         @media (max-width:760px) {
@@ -175,7 +211,6 @@
                 <div class="title">Foydalanuvchini tahrirlash</div>
                 <div class="breadcrumbs">Admin panel / Foydalanuvchilar / Tahrirlash</div>
             </div>
-
             <div style="display:flex; gap:8px; align-items:center;">
                 <a href="{{ url()->previous() }}" class="btn btn-secondary" style="text-decoration:none;">← Back</a>
             </div>
@@ -203,18 +238,15 @@
                     <div class="form-group">
                         <label for="name">Ism (name) <span style="color:var(--danger)">*</span></label>
                         <input id="name" name="name" type="text" required
-                            value="{{ old('name', $user->name) }}" autocomplete="name" />
+                            value="{{ old('name', $user->name) }}">
                         @error('name')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
-
                     <div class="form-group">
                         <label for="telegram_id">Telegram ID <span style="color:var(--danger)">*</span></label>
                         <input id="telegram_id" name="telegram_id" type="text" required
-                            value="{{ old('telegram_id', $user->telegram_id) }}" placeholder="123412345"
-                            autocomplete="off" />
-                        <div class="help">Foydalanuvchining Telegram raqami yoki ID</div>
+                            value="{{ old('telegram_id', $user->telegram_id) }}">
                         @error('telegram_id')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
@@ -226,7 +258,7 @@
                         <label for="department_id">Bo'lim <span style="color:var(--danger)">*</span></label>
                         <select id="department_id" name="department_id" required>
                             <option value="">— Tanlang —</option>
-                            @foreach($departments as $dept)
+                            @foreach ($departments as $dept)
                                 <option value="{{ $dept->id }}"
                                     {{ old('department_id', $user->department_id) == $dept->id ? 'selected' : '' }}>
                                     {{ $dept->name }}
@@ -242,7 +274,7 @@
                         <label for="role_id">Rol <span style="color:var(--danger)">*</span></label>
                         <select id="role_id" name="role_id" required>
                             <option value="">— Tanlang —</option>
-                            @foreach($roles as $role)
+                            @foreach ($roles as $role)
                                 <option value="{{ $role->id }}" data-role-name="{{ $role->name }}"
                                     {{ old('role_id', $user->role_id) == $role->id ? 'selected' : '' }}>
                                     {{ ucfirst($role->name) }}
@@ -259,22 +291,21 @@
                 <div id="credential-block" style="display:none; margin-top:12px;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="email">Email <span style="color:var(--danger)">*</span></label>
-                            <input id="email" name="email" type="email" 
-                                value="{{ old('email', $user->email) }}" />
+                            <label for="email">Email</label>
+                            <input id="email" name="email" type="email"
+                                value="{{ old('email', $user->email) }}">
                             @error('email')
                                 <div class="field-error">{{ $message }}</div>
                             @enderror
                         </div>
-
                         <div class="form-group">
-                            <label for="password">Parol (password) <span style="color:var(--danger)">*</span></label>
+                            <label for="password">Parol (password)</label>
                             <div style="display:flex; gap:8px; align-items:center;">
-                                <input id="password" name="password" type="password" style="flex:1;" />
+                                <input id="password" name="password" type="password" style="flex:1;">
                                 <button type="button" id="togglePassword" class="btn btn-secondary"
                                     style="padding:6px 10px;">Show</button>
                             </div>
-                            <div class="help">Minimal xavfsiz parol qoida (server validator bo'lishi kerak)</div>
+                            <div class="help">Agar o‘zgartirmasangiz bo‘sh qoldiring</div>
                             @error('password')
                                 <div class="field-error">{{ $message }}</div>
                             @enderror
@@ -282,15 +313,49 @@
                     </div>
                 </div>
 
-                <div class="form-actions">
+                <!-- Extra minutes -->
+                <div class="form-row" style="margin-top:12px;">
+                    <div class="form-group">
+                        <label for="has_extra_minutes">Qo'shimcha daqiqalar</label>
+                        <input type="checkbox" id="has_extra_minutes" name="has_extra_minutes" value="1"
+                            {{ old('has_extra_minutes', $user->minuteAccess?->is_active ?? 0) ? 'checked' : '' }}>
+
+
+                    </div>
+
+                    <!-- Catalog multi-select -->
+                    <div class="form-group">
+                        <label>Catalog list</label>
+                        <div class="dropdown" id="catalogDropdown">
+                            <button type="button" class="dropdown-button" id="catalogBtn">
+                                <span id="catalogBtnText">Select catalogs</span>
+                                <span id="catalogCount" class="help">0</span>
+                            </button>
+                            <div class="dropdown-panel" id="catalogPanel" style="display:none;">
+                                <input type="text" id="catalogSearch" placeholder="Search..."
+                                    style="width:97%;padding:4px 6px;font-size:12px;margin-bottom:6px;border-radius:6px;border:1px solid rgba(255,255,255,.15); background:var(--input-bg); color:var(--text)">
+                                <div class="checkbox-list">
+                                    @foreach ($catalogs as $cat)
+                                        <label style="display:flex; gap:4px; font-size:13px; line-height:1.2;">
+                                            <input type="checkbox" class="catalog-checkbox" name="catalog_ids[]"
+                                                value="{{ $cat->id }}"
+                                                {{ in_array($cat->id, old('catalog_ids', $user->catalogs->pluck('id')->toArray())) ? 'checked' : '' }}>
+                                            <span>{{ $cat->title }} <small
+                                                    style="color:var(--muted);">({{ $cat->owner }})</small></span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions" style="margin-top:14px;">
                     <button type="submit" class="btn btn-primary">Update user</button>
-                    <a href="{{ url()->previous() }}" class="btn btn-secondary" style="text-decoration:none;">Cancel</a>
+                    <a href="{{ url()->previous() }}" class="btn btn-secondary"
+                        style="text-decoration:none;">Cancel</a>
                 </div>
             </form>
-        </div>
-
-        <div class="note">
-            <strong>Note:</strong> Barcha maydonlar majburiy. Server tomonidan ham validatsiya o'tadi.
         </div>
     </div>
 
@@ -303,7 +368,7 @@
             const emailInput = document.getElementById('email');
 
             if (pw && toggleBtn) {
-                toggleBtn.addEventListener('click', function() {
+                toggleBtn.addEventListener('click', () => {
                     if (pw.type === 'password') {
                         pw.type = 'text';
                         toggleBtn.textContent = 'Hide';
@@ -314,31 +379,85 @@
                 });
             }
 
-            function shouldShowCredentials(roleName) {
-                if (!roleName) return false;
-                roleName = roleName.toLowerCase();
-                return roleName === 'admin' || roleName === 'superadmin';
-            }
-
             function applyVisibility() {
                 const opt = roleSelect.options[roleSelect.selectedIndex];
-                const roleName = opt?.dataset?.roleName || '';
-                if (shouldShowCredentials(roleName)) {
+                const roleName = opt?.dataset?.roleName?.toLowerCase() || '';
+                if (roleName.includes('admin') || roleName.includes('super')) {
                     credBlock.style.display = '';
-                    if (emailInput) emailInput.setAttribute('required', 'required');
-                    if (pw) pw.setAttribute('required', 'required');
+                    emailInput?.setAttribute('required', 'required');
+                    pw?.setAttribute('required', 'required');
                 } else {
                     credBlock.style.display = 'none';
-                    if (emailInput) emailInput.removeAttribute('required');
-                    if (pw) pw.removeAttribute('required');
+                    emailInput?.removeAttribute('required');
+                    pw?.removeAttribute('required');
                 }
             }
 
-            if (roleSelect) {
-                roleSelect.addEventListener('change', applyVisibility);
+            roleSelect?.addEventListener('change', applyVisibility);
+            document.addEventListener('DOMContentLoaded', applyVisibility);
+
+            // Catalog dropdown
+            const catalogBtn = document.getElementById('catalogBtn');
+            const catalogPanel = document.getElementById('catalogPanel');
+            const catalogDropdown = document.getElementById('catalogDropdown');
+            const catalogCheckboxes = catalogPanel.querySelectorAll('.catalog-checkbox');
+            const catalogCount = document.getElementById('catalogCount');
+            const catalogBtnText = document.getElementById('catalogBtnText');
+            const catalogSearch = document.getElementById('catalogSearch');
+
+            function openCatalog() {
+                catalogPanel.style.display = 'block';
+                catalogBtn.setAttribute('aria-expanded', 'true');
             }
 
-            document.addEventListener('DOMContentLoaded', applyVisibility);
+            function closeCatalog() {
+                catalogPanel.style.display = 'none';
+                catalogBtn.setAttribute('aria-expanded', 'false');
+            }
+
+            function toggleCatalog() {
+                catalogPanel.style.display === 'block' ? closeCatalog() : openCatalog();
+            }
+
+            catalogBtn.addEventListener('click', e => {
+                e.preventDefault();
+                toggleCatalog();
+            });
+            document.addEventListener('click', e => {
+                if (!catalogDropdown.contains(e.target)) closeCatalog();
+            });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape') closeCatalog();
+            });
+
+            function updateCatalogCount() {
+                let count = 0,
+                    titles = [];
+                catalogCheckboxes.forEach(cb => {
+                    if (cb.checked) {
+                        count++;
+                        titles.push(cb.closest('label').innerText.trim());
+                    }
+                });
+                catalogCount.textContent = count;
+                if (count === 0) {
+                    catalogBtnText.textContent = 'Select catalogs';
+                } else if (count <= 2) {
+                    catalogBtnText.textContent = titles.join(', ');
+                } else {
+                    catalogBtnText.textContent = count + ' selected';
+                }
+            }
+            catalogCheckboxes.forEach(cb => cb.addEventListener('change', updateCatalogCount));
+            updateCatalogCount();
+            catalogSearch?.addEventListener('input', function() {
+                const q = this.value.toLowerCase();
+                catalogCheckboxes.forEach(cb => {
+                    const label = cb.closest('label');
+                    label.style.display = label.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+                });
+            });
+
         })();
     </script>
 </body>

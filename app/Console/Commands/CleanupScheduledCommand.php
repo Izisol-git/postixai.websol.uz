@@ -56,7 +56,7 @@ class CleanupScheduledCommand extends Command
             return Command::FAILURE;
         }
 
-        $messages = $group->messages()->whereIn('status', ['scheduled', 'failed'])->get();
+        $messages = $group->messages()->whereIn('status', ['scheduled', 'pending',])->get();
 
         foreach ($messages as $message) {
             try {

@@ -8,7 +8,7 @@ Start tugmasini bosganingizdan so‘ng quyidagi tugmalar mavjud:
 - 📱 Telefon Raqam Qoshish  
 - 📞 Mening Telefon Raqamlarim  
 - 🗂 Cataloglar  
-- 📊 Yuborilgan Xabarlar Natijasi  
+- Yuborilgan xabarlar tarihi  
 - 📖 Qollanma  
 - 📄 Oferta  
 

@@ -91,6 +91,8 @@ return [
     'cancel_success' => '操作 #:id 已取消，更新了 :count 条消息',
     'cancel_failed' => '取消操作 #:id 时出错',
     'error_no_permission' => '您没有权限执行此操作',
+    'cancel'=>'取消',
+    'continue'=>'继续',
   ],
   'login' => [
     'title' => '登录',

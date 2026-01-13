@@ -427,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     Русский
                                 </a>
                             </li>
-                            <li>
+                            {{-- <li>
                                 <a class="dropdown-item" href="{{ url('/lang/ko') }}">
                                     한국어
                                 </a>
@@ -437,9 +437,42 @@ document.addEventListener('DOMContentLoaded', function () {
                                     中文
                                 </a>
                             </li>
-
-
-                        </ul>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/lang/ar') }}">
+                                    العربية
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/lang/es') }}">
+                                    Español
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/lang/fr') }}">
+                                    Français
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/lang/de') }}">
+                                    Deutsch
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/lang/ja') }}">
+                                    日本語
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/lang/tr') }}">
+                                    Türkçe
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/lang/hi') }}">
+                                    हिंदी
+                                </a>
+                            </li>
+                        </ul> --}}
 
                     </div>
 

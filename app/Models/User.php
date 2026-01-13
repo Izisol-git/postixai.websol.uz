@@ -3,11 +3,12 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Laravel\Sanctum\HasApiTokens;
 use App\Models\Limit;
+use Laravel\Sanctum\HasApiTokens;
 
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\MinutePackage\UserMinuteAccess;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
@@ -110,5 +111,10 @@ class User extends Authenticatable
     public function limit()
     {
         return $this->morphOne(Limit::class, 'limitable');
+    }
+    // app/Models/User.php
+    public function minuteAccess()
+    {
+        return $this->hasOne(UserMinuteAccess::class, 'user_id', 'id');
     }
 }

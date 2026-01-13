@@ -4,94 +4,116 @@
 @section('page-title', $department->name . ' — ' . __('messages.operations.title'))
 
 @section('content')
-<meta name="csrf-token" content="{{ csrf_token() }}">
-
 <style>
-/* ===== status badges & contrast improvements (override) ===== */
-.status-badge {
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:6px 10px;
-  border-radius:999px;
-  font-weight:700;
-  font-size:0.9rem;
-  color:#0b1220;
+/* Compact filters styles */
+.filter-bar .form-control-sm,
+.filter-bar .form-select-sm,
+.filter-bar .btn-sm {
+  height: 34px;
+  padding: .25rem .5rem;
+  font-size: .85rem;
 }
 
-/* colors (background + text) */
-.status-sent { background: #bbf7d0; color: #064e3b; }        /* greenish */
-.status-failed { background: #fecaca; color: #7f1d1d; }      /* red */
-.status-canceled { background: #e9d5ff; color: #5b21b6; }   /* purple */
-.status-scheduled { background: #fef3c7; color: #92400e; }  /* yellow */
-.status-pending { background: #dbeafe; color: #1e3a8a; }    /* blue */
-
-/* message card variants */
-.message-group { background: var(--card-2); border: 1px solid rgba(255,255,255,0.04); border-radius:12px; padding:12px; }
-.message-text { background: var(--card-3); border-left:4px solid var(--accent); padding:12px; border-radius:8px; color:var(--text); }
-
-/* peer row */
-.peer-row { background: rgba(255,255,255,0.02); border-radius:8px; padding:8px; }
-
-/* small muted fix */
-.text-muted.small { color: var(--muted) !important; }
-
-/* toast / alert */
-.alert {
-  padding:10px 14px;
-  border-radius:10px;
-  margin-bottom:12px;
-  font-weight:700;
+.filter-bar .input-group > .form-control,
+.filter-bar .input-group > .form-select {
+  height: 34px;
 }
-.alert-success { background:#10b981; color:#04281b; }
-.alert-error { background:#ef4444; color:#fff; }
 
-/* compact status chip inside peer */
-.status-chip {
-  padding:4px 8px; border-radius:8px; font-weight:700; font-size:0.85rem;
-  background: rgba(255,255,255,0.02);
+.filter-bar .form-select-sm {
+  min-width: 120px;
+  max-width: 220px;
+}
+
+.filter-bar .user-select {
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.filter-bar .search-input {
+  width: 220px;
+  min-width: 120px;
+}
+
+.filter-bar .date-input {
+  width: 135px;
+  min-width: 110px;
+}
+
+/* Reduce gaps and wrap nicely on small screens */
+.filter-bar {
+  gap: 6px;
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Make action button slightly tighter */
+.filter-bar .btn-search {
+  padding: .25rem .6rem;
+}
+
+/* Tweak badges and chips a bit for compact look */
+.status-badge { padding:6px 8px; font-size:.85rem; }
+.status-chip { padding:3px 6px; font-size:.78rem; }
+
+/* Make peer-row denser */
+.peer-row { padding:6px; }
+
+/* Responsive: stack filters on very small screens */
+@media (max-width: 640px) {
+  .filter-bar { gap: 8px; }
+  .filter-bar .search-input { width: 100%; }
+  .filter-bar .user-select, .filter-bar .form-select-sm { width: 48%; }
+  .filter-bar .date-input { width: 48%; }
 }
 </style>
 
 <div class="container">
-
-  {{-- SESSION FLASH --}}
   @if(session('success'))
-    <div class="alert alert-success">
-      {{ session('success') }}
-    </div>
+    <div class="alert alert-success mb-3">{{ session('success') }}</div>
   @endif
-
   @if(session('error'))
-    <div class="alert alert-error">
-      {{ session('error') }}
-    </div>
+    <div class="alert alert-danger mb-3">{{ session('error') }}</div>
   @endif
 
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h4 class="mb-0">{{ __('messages.operations.title') }}</h4>
+      <h5 class="mb-0">{{ __('messages.operations.title') }}</h5>
       <div class="text-muted small">{{ __('messages.operations.subtitle', ['dept' => $department->name ]) }}</div>
     </div>
 
-    <div class="d-flex gap-2 align-items-center">
-      <form method="GET" class="d-flex gap-2 align-items-center">
-        <input name="q" value="{{ $q ?? '' }}" class="form-control form-control-sm" type="search" placeholder="{{ __('messages.operations.search_placeholder') }}" style="width:240px;">
-        <select name="status" class="form-select form-select-sm">
-          <option value="">{{ __('messages.operations.filter_all_status') }}</option>
-          <option value="pending" {{ ($status ?? '') === 'pending' ? 'selected' : '' }}>{{ __('messages.operations.status_pending') }}</option>
-          <option value="scheduled" {{ ($status ?? '') === 'scheduled' ? 'selected' : '' }}>{{ __('messages.operations.status_scheduled') }}</option>
-          <option value="sent" {{ ($status ?? '') === 'sent' ? 'selected' : '' }}>{{ __('messages.operations.status_sent') }}</option>
-          <option value="canceled" {{ ($status ?? '') === 'canceled' ? 'selected' : '' }}>{{ __('messages.operations.status_canceled') }}</option>
-          <option value="failed" {{ ($status ?? '') === 'failed' ? 'selected' : '' }}>{{ __('messages.operations.status_failed') }}</option>
-        </select>
+    {{-- Compact filters form --}}
+    <form method="GET" class="filter-bar">
+      {{-- User --}}
+      <select name="user_id" class="form-select form-select-sm user-select" title="{{ __('messages.find.filter_all_users') }}">
+        <option value="">{{ __('messages.find.filter_all_users') ?? '— Barcha foydalanuvchilar —' }}</option>
+        @foreach($users as $u)
+          <option value="{{ $u->id }}" {{ (string)($selectedUserId ?? '') === (string)$u->id ? 'selected' : '' }}>
+            {{ $u->name ?? $u->username ?? ('#'.$u->id) }}
+          </option>
+        @endforeach
+      </select>
 
-        <input type="date" name="from" value="{{ $from ?? '' }}" class="form-control form-control-sm" title="{{ __('messages.operations.filter_from') }}" />
-        <input type="date" name="to" value="{{ $to ?? '' }}" class="form-control form-control-sm" title="{{ __('messages.operations.filter_to') }}" />
+      {{-- Search (compact) --}}
+      <input name="q" value="{{ $q ?? '' }}" class="form-control form-control-sm search-input" type="search" placeholder="{{ __('messages.operations.search_placeholder') }}">
 
-        <button class="btn btn-sm btn-primary" type="submit">{{ __('messages.operations.btn_search') }}</button>
-      </form>
-    </div>
+      {{-- Status --}}
+      <select name="status" class="form-select form-select-sm" title="{{ __('messages.operations.filter_all_status') }}">
+        <option value="">{{ __('messages.operations.filter_all_status') }}</option>
+        <option value="pending" {{ ($status ?? '') === 'pending' ? 'selected' : '' }}>{{ __('messages.operations.status_pending') }}</option>
+        <option value="scheduled" {{ ($status ?? '') === 'scheduled' ? 'selected' : '' }}>{{ __('messages.operations.status_scheduled') }}</option>
+        <option value="sent" {{ ($status ?? '') === 'sent' ? 'selected' : '' }}>{{ __('messages.operations.status_sent') }}</option>
+        <option value="canceled" {{ ($status ?? '') === 'canceled' ? 'selected' : '' }}>{{ __('messages.operations.status_canceled') }}</option>
+        <option value="failed" {{ ($status ?? '') === 'failed' ? 'selected' : '' }}>{{ __('messages.operations.status_failed') }}</option>
+      </select>
+
+      {{-- Date range compact --}}
+      <input type="date" name="from" value="{{ $from ?? '' }}" class="form-control form-control-sm date-input" title="{{ __('messages.operations.filter_from') }}" />
+      <input type="date" name="to" value="{{ $to ?? '' }}" class="form-control form-control-sm date-input" title="{{ __('messages.operations.filter_to') }}" />
+
+      {{-- Submit --}}
+      <button class="btn btn-sm btn-primary btn-search" type="submit">{{ __('messages.operations.btn_search') }}</button>
+    </form>
   </div>
 
   {{-- Totals --}}
@@ -113,8 +135,8 @@
     </div>
   </div>
 
-  {{-- Message groups list --}}
-  <div class="card p-3 mb-3">
+  {{-- Groups list (keeps previous compact styles) --}}
+  <div>
     @foreach ($messageGroups as $group)
       @php
         $gid = $group->id;
@@ -124,7 +146,7 @@
         $sample = $stat->sample_text ?? null;
       @endphp
 
-      <div class="mb-3 message-group">
+      <div class="message-group">
         <div class="d-flex justify-content-between align-items-start">
           <div>
             <div style="font-weight:800;">{{ __('messages.operations.group') }} #{{ $gid }}</div>
@@ -135,78 +157,84 @@
             </div>
           </div>
 
-          <div style="display:flex; gap:8px;">
-            <form method="POST" action="{{ route('message-groups.refresh', $gid) }}">
-              @csrf
-              <button type="submit" class="btn btn-sm btn-outline-info js-confirm-action" data-text="{{ __('messages.operations.confirm_refresh_text', ['id' => $gid]) }}">
-                {{ __('messages.operations.btn_refresh') }}
-              </button>
-            </form>
+          <div class="d-flex gap-2 align-items-center">
+            @php
+              $pendingCount = ($total['pending'] ?? 0) + ($total['scheduled'] ?? 0);
+            @endphp
 
-            <form method="POST" action="{{ route('message-groups.cancel', $gid) }}">
-              @csrf
-              <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-action" data-text="{{ __('messages.operations.confirm_cancel_text', ['id' => $gid]) }}">
-                {{ __('messages.operations.btn_cancel') }}
-              </button>
-            </form>
+            @if($pendingCount > 0)
+              <form method="POST" action="{{ route('message-groups.refresh', $gid) }}" class="m-0">
+                @csrf
+                <button type="submit" class="btn btn-sm btn-outline-info js-confirm-action" data-text="{{ __('messages.operations.confirm_refresh_text', ['id' => $gid]) }}">
+                  {{ __('messages.operations.btn_refresh') }}
+                </button>
+              </form>
+
+              <form method="POST" action="{{ route('message-groups.cancel', $gid) }}" class="m-0">
+                @csrf
+                <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-action" data-text="{{ __('messages.operations.confirm_cancel_text', ['id' => $gid]) }}">
+                  {{ __('messages.operations.btn_cancel') }}
+                </button>
+              </form>
+            @endif
           </div>
         </div>
 
         <hr style="border-color:rgba(255,255,255,0.03); margin:8px 0;">
 
-        <div class="message-text">
+        <div class="message-text mb-2">
           <strong style="color:var(--accent);">{{ __('messages.operations.text_label') }}:</strong>
           <span style="font-weight:600;">{{ $sample ?? '—' }}</span>
         </div>
 
-        <div style="margin-top:8px;">
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+        <div>
+          <div class="d-flex gap-2 flex-wrap mb-3">
             @foreach (['sent','failed','canceled','scheduled','pending'] as $k)
               @php $c = $total[$k] ?? 0; @endphp
               @if($c > 0)
                 <span class="status-badge status-{{ $k }}">
                   {!! $k === 'sent' ? '✓' : ($k === 'failed' ? '✕' : ($k === 'canceled' ? '⦸' : '⏳')) !!}
-                  <span style="opacity:.9;">{{ __('messages.operations.status_'.$k) }}</span>
-                  <span class="ms-1" style="font-weight:900;">{{ $c }}</span>
+                  <span style="opacity:.9; margin-left:6px;">{{ __('messages.operations.status_'.$k) }}</span>
+                  <span class="ms-1" style="font-weight:900; margin-left:6px;">{{ $c }}</span>
                 </span>
               @endif
             @endforeach
           </div>
 
-          {{-- Peers list (scrollable) --}}
           <div style="max-height:220px; overflow:auto; padding-right:6px;">
-            @foreach($peers as $peer => $statuses)
+            @forelse($peers as $peer => $statuses)
               @php $peerTotal = array_sum($statuses); @endphp
               <div class="peer-row d-flex justify-content-between align-items-center mb-2">
                 <div style="min-width:0; overflow:hidden;">
-                  <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;">{{ $peer }}</strong>
+                  <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:400px;">{{ $peer }}</strong>
                   <div class="text-muted small">{{ __('messages.operations.peer_total') }}: {{ $peerTotal }}</div>
                 </div>
 
-                <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                <div class="d-flex gap-2 flex-wrap align-items-center">
                   @foreach(['sent','failed','canceled','scheduled','pending'] as $kk)
                     @php $cnt = $statuses[$kk] ?? 0; @endphp
                     @if($cnt > 0)
                       <div class="status-chip">
                         {!! $kk === 'sent' ? '✓' : ($kk === 'failed' ? '✕' : ($kk === 'canceled' ? '⦸' : '⏳')) !!}
-                        <span style="opacity:.9;">{{ __('messages.operations.status_'.$kk) }}</span>
+                        <span style="opacity:.9; margin-left:6px;">{{ __('messages.operations.status_'.$kk) }}</span>
                         <strong style="color:var(--accent); margin-left:6px;">{{ $cnt }}</strong>
                       </div>
                     @endif
                   @endforeach
                 </div>
               </div>
-            @endforeach
+            @empty
+              <div class="text-muted small">— {{ __('messages.operations.no_peers') ?? 'Peerlar yo‘q' }}</div>
+            @endforelse
           </div>
 
-          {{-- totals / rate --}}
           @php
             $all = array_sum($total);
             $sent = $total['sent'] ?? 0;
             $rate = $all > 0 ? round(($sent / $all) * 100) : 0;
           @endphp
 
-          <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap; font-weight:700;">
+          <div class="d-flex gap-3 flex-wrap mt-3" style="font-weight:700;">
             <div>{{ __('messages.operations.total') }}: <span style="color:var(--accent)">{{ $all }}</span></div>
             <div>{{ __('messages.operations.total_sent') }}: <span style="color:#22c55e">{{ $sent }}</span></div>
             <div>{{ __('messages.operations.rate') }}: <span style="color:var(--accent2)">{{ $rate }}%</span></div>
@@ -221,7 +249,7 @@
   </div>
 </div>
 
-{{-- Confirm modal (reused) --}}
+{{-- Confirm modal --}}
 <div id="confirmOverlay" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:99998;">
   <div style="width:100%; max-width:520px; background:var(--card); color:var(--text); border-radius:12px; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.6);">
     <h5 id="confirmTitle">{{ __('messages.operations.confirm') }}</h5>
@@ -260,18 +288,15 @@
     activeForm.submit();
   });
 
-  // attach to js-confirm-action buttons (forms contain .js-confirm-action button)
   document.addEventListener('click', function(e){
     const btn = e.target.closest('.js-confirm-action');
     if (!btn) return;
     e.preventDefault();
 
-    // find enclosing form
     const form = btn.closest('form');
     const txt = btn.getAttribute('data-text') || btn.dataset.text || '';
     openConfirm(txt, form);
   });
 })();
 </script>
-
 @endsection
