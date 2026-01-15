@@ -13,13 +13,15 @@ class VerifyPhoneWithUserJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $phone;
+    public int $userId;
     public string $code;
     public ?string $password;
     public ?int $departmentId;
 
-    public function __construct(string $phone,  string $code, ?string $password = null, ?int $departmentId = null)
+    public function __construct(string $phone, int $userId, string $code, ?string $password = null, ?int $departmentId = null)
     {
         $this->phone = $phone;
+        $this->userId = $userId;
         $this->code = $code;
         $this->password = $password;
         $this->departmentId = $departmentId;
@@ -30,7 +32,7 @@ class VerifyPhoneWithUserJob implements ShouldQueue
     $php = '/opt/php83/bin/php';
     $artisan = base_path('artisan');
 
-    $command = "nohup {$php} {$artisan} telegram:userWithPhone {$this->phone} {$this->code}";
+    $command = "nohup {$php} {$artisan} telegram:userWithPhone {$this->phone} {$this->userId} {$this->code}";
 
     if ($this->departmentId) {
         $command .= " --department={$this->departmentId}";

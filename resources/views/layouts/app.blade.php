@@ -427,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     Русский
                                 </a>
                             </li>
-                            {{-- <li>
+                            <li>
                                 <a class="dropdown-item" href="{{ url('/lang/ko') }}">
                                     한국어
                                 </a>
@@ -472,7 +472,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     हिंदी
                                 </a>
                             </li>
-                        </ul> --}}
+                        </ul>
 
                     </div>
 

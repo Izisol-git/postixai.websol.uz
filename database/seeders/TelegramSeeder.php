@@ -41,7 +41,6 @@ class TelegramSeeder extends Seeder
                     'role_id'       => $role->id,
                 ]);
 
-                // 1-3 phones per user
                 $phonesCount = rand(1, 1);
                 for ($p = 0; $p < $phonesCount; $p++) {
                     $phone = UserPhone::create([
@@ -50,7 +49,6 @@ class TelegramSeeder extends Seeder
                         'is_active' => true,
                     ]);
 
-                    // 1-3 message groups per phone
                     $groupsCount = rand(2, 5);
                     for ($g = 0; $g < $groupsCount; $g++) {
                         $group = MessageGroup::create([

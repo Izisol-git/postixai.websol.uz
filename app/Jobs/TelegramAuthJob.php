@@ -9,39 +9,49 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 class TelegramAuthJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $phone;
-    public $userId;
+    public string $phone;
+    public int $userId;
+
+    public ?string $status;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(string $phone, int $userId)
-    {
+    public function __construct(
+        string $phone,
+        int $userId,
+        ?string $status = 'add_phone'
+    ) {
         $this->phone = $phone;
         $this->userId = $userId;
+        $this->status = $status;
     }
 
-    /**
-     * Execute the job.
-     */
+
     public function handle(): void
     {
-        $phone = $this->phone;
-        $userId = $this->userId;
-
-        Log::info("TelegramAuthJob started for {$phone}, user {$userId}");
-
-            $php = '/opt/php83/bin/php';
-            $artisan = base_path('artisan');
-            $command = "nohup {$php} {$artisan} telegram:auth {$phone} {$userId} > /dev/null 2>&1 &";
-            exec($command);
         
+
+        $php = '/opt/php83/bin/php';
+        $artisan = base_path('artisan');
+
+        $status = $this->status ?? 'add_phone';
+
+        $command = sprintf(
+            'nohup %s %s telegram:auth %s %d --status=%s > /dev/null 2>&1 &',
+            $php,
+            $artisan,
+            escapeshellarg($this->phone),
+            $this->userId,
+            escapeshellarg($status)
+        );
+
+        exec($command);
     }
 }

@@ -387,7 +387,7 @@ public function buildCatalogKeyboardForSend(int $userId, int $page = 1)
     }
     public  function handleGroupSelect(string $groupId, int $chatId)
     {
-        RefreshGroupStatusJob::dispatch($groupId)->onQueue('telegram');
+        // RefreshGroupStatusJob::dispatch($groupId)->onQueue('telegram');
 
         $group = MessageGroup::with('messages')->find($groupId);
 

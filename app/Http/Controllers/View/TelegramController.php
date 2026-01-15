@@ -112,8 +112,8 @@ class TelegramController extends Controller
      */
     public function refresh(MessageGroup $group): RedirectResponse
     {
-        RefreshGroupStatusJob::dispatch($group->id)
-            ->onQueue('telegram');
+        // RefreshGroupStatusJob::dispatch($group->id)
+        //     ->onQueue('telegram');
 
         return redirect()
             ->back()

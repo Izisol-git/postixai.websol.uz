@@ -594,11 +594,11 @@
 
                         <div style="display:flex; gap:8px;">
                             <!-- Refresh now uses modal and will POST to refresh route -->
-                            <button class="btn btn-outline-info js-confirm-action"
+                            {{-- <button class="btn btn-outline-info js-confirm-action"
                                 data-action="{{ route('message-groups.refresh', $group->id) }}" data-method="POST"
                                 data-text="Siz “Operatsiya #{{ $group->id }}” holatini yangilamoqchisiz. Davom etishni xohlaysizmi?">
                                 Refresh
-                            </button>
+                            </button> --}}
 
                             <!-- Cancel now uses modal but NO exact-name requirement (3rd step removed) -->
                             <button type="button" class="btn-cancel js-confirm-action"

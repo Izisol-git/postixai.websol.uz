@@ -46,6 +46,13 @@
   display: flex;
   flex-wrap: wrap;
 }
+.message-group {
+  margin-bottom: 16px; /* hozirgi 8px dan kattalashtirish */
+  padding: 10px;       /* ichki bo‘shliqni biroz oshirish */
+  border-radius: 6px;  /* yumaloq burchak, vizual uchun */
+  background-color: rgba(255,255,255,0.02); /* juda yumshoq fon, bo‘shliqni ko‘rsatadi */
+}
+
 
 /* Make action button slightly tighter */
 .filter-bar .btn-search {
@@ -163,12 +170,12 @@
             @endphp
 
             @if($pendingCount > 0)
-              <form method="POST" action="{{ route('message-groups.refresh', $gid) }}" class="m-0">
+              {{-- <form method="POST" action="{{ route('message-groups.refresh', $gid) }}" class="m-0">
                 @csrf
                 <button type="submit" class="btn btn-sm btn-outline-info js-confirm-action" data-text="{{ __('messages.operations.confirm_refresh_text', ['id' => $gid]) }}">
                   {{ __('messages.operations.btn_refresh') }}
                 </button>
-              </form>
+              </form> --}}
 
               <form method="POST" action="{{ route('message-groups.cancel', $gid) }}" class="m-0">
                 @csrf

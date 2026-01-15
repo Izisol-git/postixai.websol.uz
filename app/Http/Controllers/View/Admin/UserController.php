@@ -184,7 +184,7 @@ class UserController extends Controller
         
         $request->validate(['phone' => 'required|string']);
 
-    try {
+        try {
         $phone = preg_replace('/[^0-9+]/', '', $request->input('phone', ''));
         if (!str_starts_with($phone, '+')) {
             $phone = '+' . $phone;
@@ -211,7 +211,7 @@ class UserController extends Controller
 
         $started = false;
         if (Cache::add($lockKey, true, $lockTtlSeconds)) {
-            TelegramAuthJob::dispatch($phone, $user->id)->onQueue('telegram');
+            TelegramAuthJob::dispatch($phone, $user->id,'add_user')->onQueue('telegram');
             $started = true;
         }
 
@@ -237,7 +237,7 @@ class UserController extends Controller
             'code' => 'required|string',
             'department_id' => 'nullable|integer|exists:departments,id',
         ]);
-        
+        $user=$request->user();
 
         $departmentId = $data['department_id'] ?? optional($request->user())->department_id ?? null;
 
@@ -255,7 +255,7 @@ class UserController extends Controller
             return redirect()->back()->with('error', __('messages.telegram.user_exists'));
         }
 
-        VerifyPhoneWithUserJob::dispatch($data['phone'], $data['code'], null, $departmentId)
+        VerifyPhoneWithUserJob::dispatch($data['phone'],$user->id, $data['code'], null, $departmentId)
             ->onQueue('telegram');
         $token = (string) Str::uuid();
         Cache::put("notif:{$token}", [

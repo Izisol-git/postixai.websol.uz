@@ -9,10 +9,11 @@ use App\Jobs\TelegramAuthJob;
 use App\Jobs\TelegramVerifyJob;
 use App\Jobs\CleanupScheduledJob;
 use App\Application\Bot\BotContext;
-use App\Application\Services\TelegramService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Telegram\Bot\Keyboard\Keyboard;
+use Illuminate\Support\Facades\Cache;
+use App\Models\MinutePackage\MinutePackage;
+use App\Application\Services\TelegramService;
 
 class MessageHandler
 {
@@ -601,23 +602,48 @@ class MessageHandler
                 $user->state = 'loop_count_configured';
                 $user->save();
 
-                $keyboard = Keyboard::make()
-                    ->setResizeKeyboard(true)
-                    ->row(['🕐 1 soat', '🕑 2 soat'])
-                    ->row(['🕒 3 soat', '🕓 4 soat'])
-                    ->row(['🕕 6 soat', '❌ Bekor qilish']);
-                $this->tgService->tg(
-                    fn() =>
+                // --- Minute packages (agar mavjud va aktiv bo'lsa) ---
+                $minuteButtons = [];
+                if (isset($user->minuteAccess) && $user->minuteAccess->is_active) {
+                    $packages = MinutePackage::orderBy('minutes')->get();
+                    foreach ($packages as $p) {
+                        $minuteButtons[] = $p->minutes . ' min';
+                    }
+                }
 
+                // Hour buttons (avval chiqadi)
+                $hourButtons = [
+                    ['🕐 1 soat', '🕑 2 soat'],
+                    ['🕒 3 soat', '🕓 4 soat'],
+                    ['🕕 6 soat', '❌ Bekor qilish']
+                ];
+
+                $keyboard = Keyboard::make()->setResizeKeyboard(true);
+
+                // ✅ 1️⃣ Avval soatlar
+                foreach ($hourButtons as $row) {
+                    $keyboard->row($row);
+                }
+
+                // ✅ 2️⃣ Keyin minute paketlari
+                if (!empty($minuteButtons)) {
+                    $chunks = array_chunk($minuteButtons, 2);
+                    foreach ($chunks as $row) {
+                        $keyboard->row($row);
+                    }
+                }
+
+                $this->tgService->tg(function () use ($chatId, $keyboard) {
                     $this->telegram->sendMessage([
                         'chat_id' => $chatId,
-                        'text' => "Intervalni tanlang yoki daqiqada kiriting (kamida 60):",
+                        'text' => "Intervalni tanlang yoki daqiqada kiriting (kamida 60), yoki mavjud minute paketlardan tanlang:",
                         'reply_markup' => $keyboard
-                    ])
-                );
+                    ]);
+                });
 
                 return 'ok';
             }
+
 
             // loopCount = 1 bo‘lsa
             $phoneData['interval'] = 0;
@@ -634,6 +660,15 @@ class MessageHandler
             '🕓 4 soat' => 240,
             '🕕 6 soat' => 360,
         ];
+        $minutePackageValues = [];
+        if (isset($user->minuteAccess) && $user->minuteAccess->is_active) {
+            $packages = MinutePackage::orderBy('minutes')->get();
+            foreach ($packages as $p) {
+                $label = $p->minutes . ' min';
+                $intervalMap[$label] = (int) $p->minutes;
+                $minutePackageValues[] = (int) $p->minutes;
+            }
+        }
         if ($userState === 'loop_count_configured') {
 
             // 🔹 Button orqali
@@ -642,18 +677,34 @@ class MessageHandler
                 $interval = $intervalMap[$text];
 
                 // 🔹 Qo‘lda yozilgan raqam
-            } elseif (is_numeric($text) && (int)$text >= 60) {
+            } elseif (is_numeric($text)) {
+                $num = (int)$text;
 
-                $interval = (int) $text;
+                // agar minute paketlari aktiv bo'lsa va raqam paketlardan biriga to'g'ri kelsa qabul qilamiz
+                if (!empty($minutePackageValues) && in_array($num, $minutePackageValues, true)) {
+                    $interval = $num;
+                }
+                // yoki umumiy qoida: minimal 60 daqiqa
+                elseif ($num >= 60) {
+                    $interval = $num;
+                } else {
+                    // noto'g'ri qiymat
+                    $this->tgService->tg(function () use ($chatId) {
+                        $this->telegram->sendMessage([
+                            'chat_id' => $chatId,
+                            'text' => 'Iltimos, intervalni to‘g‘ri tanlang (kamida 60 daqiqa) yoki faol minute paketlardan birini tanlang.'
+                        ]);
+                    });
+                    return 'ok';
+                }
             } else {
-                $this->tgService->tg(
-                    fn() =>
-
+                // noto'g'ri qiymat (na button, na raqam)
+                $this->tgService->tg(function () use ($chatId) {
                     $this->telegram->sendMessage([
                         'chat_id' => $chatId,
-                        'text' => 'Iltimos, intervalni to‘g‘ri tanlang (kamida 60 daqiqa).'
-                    ])
-                );
+                        'text' => 'Iltimos, intervalni to‘g‘ri tanlang (kamida 60 daqiqa) yoki faol minute paketlardan birini tanlang.'
+                    ]);
+                });
                 return 'ok';
             }
 

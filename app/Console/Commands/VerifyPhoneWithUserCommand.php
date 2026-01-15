@@ -17,12 +17,12 @@ use Exception;
 
 class VerifyPhoneWithUserCommand extends Command
 {
-    protected $signature = 'telegram:userWithPhone {phone} {code} {userId} {--department=} {--password=}';
+    protected $signature = 'telegram:userWithPhone {phone} {userId} {code} {--department=} {--password=}';
     protected $description = 'Verify phone with MadelineProto, get telegram user info and create/update local User + UserPhone';
 
     protected function findSessionPath(string $phone, string $userId): ?string
     {
-        $path = storage_path("app/sessions/{$phone}_user_{$userId}.madeline");
+        $path = storage_path("app/sessions/{$phone}_add_user_{$userId}.madeline");
         return file_exists($path) ? $path : null;
     }
 
