@@ -9,6 +9,7 @@ use App\Models\UserPhone;
 use App\Models\MessageGroup;
 use App\Models\TelegramMessage;
 use App\Jobs\SendTelegramMessages;
+use Illuminate\Support\Facades\DB;
 use App\Jobs\RefreshGroupStatusJob;
 use Illuminate\Support\Facades\Log;
 use Telegram\Bot\Keyboard\Keyboard;
@@ -29,7 +30,7 @@ class TelegramService
 
         $keyboard
             ->row([
-                
+
                 Keyboard::button('📱 Telefonlarim'),
             ])
             ->row([
@@ -46,143 +47,143 @@ class TelegramService
             ]);
         }
 
-        
+
 
         return $keyboard;
     }
     public function buildSendCatalogInlineKeyboard($user)
-{
-    $keyboard = Keyboard::make()->inline();
+    {
+        $keyboard = Keyboard::make()->inline();
 
-    /** -------------------------
-     *  1️⃣ USER O‘Z CATALOG'LARI
-     * ------------------------- */
-    $myCatalogs = Catalog::where('user_id', $user->id)->get();
+        /** -------------------------
+         *  1️⃣ USER O‘Z CATALOG'LARI
+         * ------------------------- */
+        $myCatalogs = Catalog::where('user_id', $user->id)->get();
 
-    foreach ($myCatalogs as $catalog) {
-        $keyboard->row([
-            Keyboard::inlineButton([
-                'text' => $catalog->title . ' (' . $user->name . ')',
-                'callback_data' => 'catalog_start_' . $catalog->id
-            ])
-        ]);
-    }
+        foreach ($myCatalogs as $catalog) {
+            $keyboard->row([
+                Keyboard::inlineButton([
+                    'text' => $catalog->title . ' (' . $user->name . ')',
+                    'callback_data' => 'catalog_start_' . $catalog->id
+                ])
+            ]);
+        }
 
-    /** --------------------------------
-     *  2️⃣ DEPARTMENT USERLARI CATALOGI
-     * -------------------------------- */
-    if ($user->department) {
-        foreach ($user->department->users as $depUser) {
+        /** --------------------------------
+         *  2️⃣ DEPARTMENT USERLARI CATALOGI
+         * -------------------------------- */
+        if ($user->department) {
+            foreach ($user->department->users as $depUser) {
 
-            // o‘zini yana qayta qo‘shmaslik
-            if ($depUser->id === $user->id) {
-                continue;
-            }
+                // o‘zini yana qayta qo‘shmaslik
+                if ($depUser->id === $user->id) {
+                    continue;
+                }
 
-            foreach ($depUser->catalogs as $catalog) {
-                $keyboard->row([
-                    Keyboard::inlineButton([
-                        'text' => $catalog->title . ' (' . $depUser->name . ')',
-                        'callback_data' => 'catalog_start_' . $catalog->id
-                    ])
-                ]);
+                foreach ($depUser->catalogs as $catalog) {
+                    $keyboard->row([
+                        Keyboard::inlineButton([
+                            'text' => $catalog->title . ' (' . $depUser->name . ')',
+                            'callback_data' => 'catalog_start_' . $catalog->id
+                        ])
+                    ]);
+                }
             }
         }
+
+        /** 🔙 Cancel */
+        $keyboard->row([
+            Keyboard::inlineButton([
+                'text' => '❌ Bekor qilish',
+                'callback_data' => 'cancel_catalog'
+            ])
+        ]);
+
+        return $keyboard;
     }
-
-    /** 🔙 Cancel */
-    $keyboard->row([
-        Keyboard::inlineButton([
-            'text' => '❌ Bekor qilish',
-            'callback_data' => 'cancel_catalog'
-        ])
-    ]);
-
-    return $keyboard;
-}
     // Yangi/yangilangan method: buildCatalogKeyboardForSend
-public function buildCatalogKeyboardForSend(int $userId, int $page = 1)
-{
-    // 1) Avval userning o'z kataloglari, keyin departmentdagi users kataloglari:
-    $user = User::with('department.users')->find($userId);
+    public function buildCatalogKeyboardForSend(int $userId, int $page = 1)
+    {
+        // 1) Avval userning o'z kataloglari, keyin departmentdagi users kataloglari:
+        $user = User::with('department.users')->find($userId);
 
-    $userIds = [$userId];
+        $userIds = [$userId];
 
-    if ($user && $user->department) {
-        // department->users may include the user himself; pluck va unique qilish
-        $deptUserIds = $user->department->users->pluck('id')->toArray();
-        $userIds = array_values(array_unique(array_merge($userIds, $deptUserIds)));
-    }
+        if ($user && $user->department) {
+            // department->users may include the user himself; pluck va unique qilish
+            $deptUserIds = $user->department->users->pluck('id')->toArray();
+            $userIds = array_values(array_unique(array_merge($userIds, $deptUserIds)));
+        }
 
-    // 2) Cataloglarni yuklash, user relation bilan (owner nomi uchun)
-    $catalogsCollection = Catalog::with('user')
-        ->whereIn('user_id', $userIds)
-        ->orderBy('id')
-        ->get();
+        // 2) Cataloglarni yuklash, user relation bilan (owner nomi uchun)
+        $catalogsCollection = Catalog::with('user')
+            ->whereIn('user_id', $userIds)
+            ->orderBy('id')
+            ->get();
 
-    // Map qilib arrayga o'tkazamiz va owner nomini qo'shamiz
-    $catalogs = $catalogsCollection->map(function ($c) {
-        $ownerName = $c->user->name ?? $c->user->username ?? ('user#' . $c->user_id);
-        return [
-            'id' => $c->id,
-            'title' => $c->title,
-            'owner_name' => $ownerName,
-            'user_id' => $c->user_id,
-        ];
-    })->toArray();
+        // Map qilib arrayga o'tkazamiz va owner nomini qo'shamiz
+        $catalogs = $catalogsCollection->map(function ($c) {
+            $ownerName = $c->user->name ?? $c->user->username ?? ('user#' . $c->user_id);
+            return [
+                'id' => $c->id,
+                'title' => $c->title,
+                'owner_name' => $ownerName,
+                'user_id' => $c->user_id,
+            ];
+        })->toArray();
 
-    // 3) Pagination va keyboard qurish
-    $perPage = 10;
-    $chunks = array_chunk($catalogs, $perPage);
-    $pageIndex = max(0, $page - 1);
-    $pageCatalogs = $chunks[$pageIndex] ?? [];
+        // 3) Pagination va keyboard qurish
+        $perPage = 10;
+        $chunks = array_chunk($catalogs, $perPage);
+        $pageIndex = max(0, $page - 1);
+        $pageCatalogs = $chunks[$pageIndex] ?? [];
 
-    $keyboard = (new Keyboard)->inline();
+        $keyboard = (new Keyboard)->inline();
 
-    // Catalog tugmalari: har bir tugmada Title (Owner)
-    $catalogButtons = [];
-    foreach ($pageCatalogs as $catalog) {
-        $text = $catalog['title'] . ' (' . $catalog['owner_name'] . ')';
-        $catalogButtons[] = Keyboard::inlineButton([
-            'text' => $text,
-            'callback_data' => 'catalog_start_' . $catalog['id']
+        // Catalog tugmalari: har bir tugmada Title (Owner)
+        $catalogButtons = [];
+        foreach ($pageCatalogs as $catalog) {
+            $text = $catalog['title'] . ' (' . $catalog['owner_name'] . ')';
+            $catalogButtons[] = Keyboard::inlineButton([
+                'text' => $text,
+                'callback_data' => 'catalog_start_' . $catalog['id']
+            ]);
+        }
+
+        // 2-ta tugma bir qatorda
+        foreach (array_chunk($catalogButtons, 2) as $chunk) {
+            $keyboard->row($chunk);
+        }
+
+        // Navigation tugmalari (prefikslar o'zgartirilgan)
+        $navButtons = [];
+        $totalPages = count($chunks);
+        if ($page > 1) {
+            $navButtons[] = Keyboard::inlineButton([
+                'text' => '⬅ Previous',
+                'callback_data' => 'catalog_send_page_' . ($page - 1)
+            ]);
+        }
+        if ($page < $totalPages) {
+            $navButtons[] = Keyboard::inlineButton([
+                'text' => 'Next ➡',
+                'callback_data' => 'catalog_send_page_' . ($page + 1)
+            ]);
+        }
+        if ($navButtons) {
+            $keyboard->row($navButtons);
+        }
+
+        // Bekor qilish tugmasi
+        $keyboard->row([
+            Keyboard::inlineButton([
+                'text' => '❌ Catalog tanlashni bekor qilish',
+                'callback_data' => 'cancel_catalog'
+            ])
         ]);
-    }
 
-    // 2-ta tugma bir qatorda
-    foreach (array_chunk($catalogButtons, 2) as $chunk) {
-        $keyboard->row($chunk);
+        return $keyboard;
     }
-
-    // Navigation tugmalari (prefikslar o'zgartirilgan)
-    $navButtons = [];
-    $totalPages = count($chunks);
-    if ($page > 1) {
-        $navButtons[] = Keyboard::inlineButton([
-            'text' => '⬅ Previous',
-            'callback_data' => 'catalog_send_page_' . ($page - 1)
-        ]);
-    }
-    if ($page < $totalPages) {
-        $navButtons[] = Keyboard::inlineButton([
-            'text' => 'Next ➡',
-            'callback_data' => 'catalog_send_page_' . ($page + 1)
-        ]);
-    }
-    if ($navButtons) {
-        $keyboard->row($navButtons);
-    }
-
-    // Bekor qilish tugmasi
-    $keyboard->row([
-        Keyboard::inlineButton([
-            'text' => '❌ Catalog tanlashni bekor qilish',
-            'callback_data' => 'cancel_catalog'
-        ])
-    ]);
-
-    return $keyboard;
-}
 
     public function buildCatalogKeyboard(int $userId, int $page = 1)
     {
@@ -385,36 +386,81 @@ public function buildCatalogKeyboardForSend(int $userId, int $page = 1)
 
         return $keyboard;
     }
-    public  function handleGroupSelect(string $groupId, int $chatId)
-    {
-        // RefreshGroupStatusJob::dispatch($groupId)->onQueue('telegram');
+    public function handleGroupSelect(string $groupId, int $chatId)
+{
+    $group = MessageGroup::with('messages')->find($groupId);
 
-        $group = MessageGroup::with('messages')->find($groupId);
+    if (!$group || $group->messages->isEmpty()) {
+        $this->tg(fn() => $this->telegram->sendMessage([
+            'chat_id' => $chatId,
+            'text' => "⚠️ Guruh yoki xabarlar topilmadi."
+        ]));
+        return;
+    }
 
-        if (!$group || $group->messages->isEmpty()) {
-            $this->tg(
-                fn() =>
-                $this->telegram->sendMessage([
-                    'chat_id' => $chatId,
-                    'text' => "⚠️ Guruh yoki xabarlar topilmadi."
-                ])
-            );
-            return;
-        }
+    $messages = $group->messages;
 
-        $messages = $group->messages;
+    /**
+     * 1️⃣ ASOSIY MA’LUMOTLAR (1-xabar)
+     */
+    $headerText  = "📊 Guruh ma'lumotlari\n\n";
+    $headerText .= "📌 Guruh ID: {$group->id}\n";
+    $headerText .= "🕒 Boshlangan: " . optional($messages->min('send_at'))->format('Y-m-d H:i') . "\n";
+    $headerText .= "⏰ Tugashi: " . optional($messages->max('send_at'))->format('Y-m-d H:i') . "\n\n";
+    $headerText .= "⏰ Last sent at: " . optional(
+        $messages->where('status', 'sent')->max('updated_at')
+    )->format('Y-m-d H:i') . "\n\n";
 
-        $text  = "📊 Guruh ma'lumotlari\n\n";
-        $text .= "📌 Guruh ID: {$group->id}\n";
-        $text .= "🕒 Boshlangan: " . optional($messages->min('send_at'))->format('Y-m-d H:i') . "\n";
-        $text .= "⏰ Tugashi: " . optional($messages->max('send_at'))->format('Y-m-d H:i') . "\n\n";
-        $text .= "⏰ Last sent at: " . optional($messages->where('status', 'sent')->max('updated_at'))->format('Y-m-d H:i') . "\n\n";
+    $headerText .= "📝 Message:\n";
+    $headerText .= $messages->first()->message_text;
 
-        $text .= "📝 Message:\n";
-        $text .= $messages->first()->message_text . "\n\n";
+    /**
+     * 🎹 KEYBOARD faqat birinchi xabarda
+     */
+    $replyKeyboard = Keyboard::make()->setResizeKeyboard(true);
 
-        $text .= "👥 Peerlar bo‘yicha holat:\n";
-        $messages->groupBy('peer')->each(function ($peerMessages, $peer) use (&$text) {
+    $hasPendingOrScheduled = $messages->contains(
+        fn($msg) => in_array($msg->status, ['scheduled', 'pending'])
+    );
+
+    if ($hasPendingOrScheduled) {
+        $replyKeyboard->row([
+            Keyboard::button("❌ To‘xtatish {$group->id}"),
+            Keyboard::button("🔄 Malumotlarni yangilash {$group->id}")
+        ]);
+    }
+    $hasFailed = $messages->contains(fn($msg) => $msg->status === 'failed');
+
+    if ($hasFailed) {
+    $replyKeyboard->row([
+        Keyboard::button("❌ Failed lar {$group->id}")
+    ]);
+}
+    $replyKeyboard->row([
+        Keyboard::button("📊 Yuborilgan xabarlar tarixi"),
+        Keyboard::button("📂 Cataloglar")
+    ])->row([
+        Keyboard::button("Menyu")
+    ]);
+
+    $this->tg(fn() => $this->telegram->sendMessage([
+        'chat_id' => $chatId,
+        'text' => $headerText,
+        'reply_markup' => $replyKeyboard
+    ]));
+
+    /**
+     * 2️⃣ PEERLAR BO‘YICHA HOLAT
+     * Har 30 ta peer = 1 xabar
+     */
+    $peers = $messages->groupBy('peer')->chunk(30);
+    $page = 1;
+
+    foreach ($peers as $chunk) {
+
+        $text = "👥 Peerlar bo‘yicha holat (qism {$page})\n\n";
+
+        foreach ($chunk as $peer => $peerMessages) {
             $counts = $peerMessages->groupBy('status')->map->count();
 
             $statusText = collect([
@@ -425,101 +471,124 @@ public function buildCatalogKeyboardForSend(int $userId, int $page = 1)
                 'canceled'  => '🚫',
             ])
                 ->filter(fn($icon, $status) => ($counts[$status] ?? 0) > 0)
-                ->map(fn($icon, $status) => "{$icon} {$status}: {$counts[$status]}")
+                ->map(fn($icon, $status) => "{$icon} {$counts[$status]}")
                 ->implode(' | ');
 
             $text .= "• {$peer} — {$statusText}\n";
-        });
-
-        // Keyboard yaratish
-        $replyKeyboard = Keyboard::make()->setResizeKeyboard(true);
-
-        // Agar hammasi 'sent' bo‘lmasa
-        $hasPendingOrScheduled = $messages->contains(fn($msg) => in_array($msg->status, ['scheduled', 'pending']));
-
-        if ($hasPendingOrScheduled) {
-            $replyKeyboard->row([
-                Keyboard::button("❌ To‘xtatish {$group->id}"),
-                Keyboard::button("🔄 Malumotlarni yangilash {$group->id}")
-            ]);
         }
 
+        $this->tg(fn() => $this->telegram->sendMessage([
+            'chat_id' => $chatId,
+            'text' => $text
+        ]));
 
-        // Doimiy menu tugmalari
-        $replyKeyboard->row([
-            Keyboard::button("📊 Yuborilgan xabarlar tarixi"),
-            Keyboard::button("📂 Cataloglar")
-        ])->row([
-            Keyboard::button("Menyu")
+        $page++;
+    }
+}
+public function showFailedPeers(string $groupId, int $chatId)
+{
+    $group = MessageGroup::with('messages')->find($groupId);
+
+    if (!$group) {
+        return;
+    }
+
+    $failedMessages = $group->messages
+        ->where('status', 'failed')
+        ->groupBy('peer');
+
+    if ($failedMessages->isEmpty()) {
+        $this->telegram->sendMessage([
+            'chat_id' => $chatId,
+            'text' => "✅ Failed xabarlar yo‘q"
+        ]);
+        return;
+    }
+
+    $chunks = $failedMessages->chunk(30);
+    $page = 1;
+
+    foreach ($chunks as $chunk) {
+        $text = "❌ Failed peerlar (qism {$page})\n\n";
+
+        foreach ($chunk as $peer => $msgs) {
+            $text .= "• {$peer} — ❌ {$msgs->count()}\n";
+        }
+
+        $this->telegram->sendMessage([
+            'chat_id' => $chatId,
+            'text' => $text
         ]);
 
-        $this->tg(
-            fn() =>
-            $this->telegram->sendMessage([
-                'chat_id' => $chatId,
-                'text' => $text,
-                'reply_markup' => $replyKeyboard
-            ])
-        );
+        $page++;
     }
-    public  function createMessageGroup($user, $chatId)
-    {
-        $data = json_decode($user->value, true);
+}
 
-        $phone = UserPhone::find($data['phone_id']);
-        if (!$phone) {
-            $this->tg(fn() =>
 
+    public function createMessageGroup($user, $chatId)
+{
+    $data = json_decode($user->value, true);
+
+    $phone = UserPhone::find($data['phone_id']);
+    if (!$phone) {
+        $this->tg(fn() =>
             $this->telegram->sendMessage([
                 'chat_id' => $chatId,
                 'text' => "Telefon topilmadi."
-            ]));
-            return 'ok';
+            ])
+        );
+        return 'ok';
+    }
+
+    $group = MessageGroup::create([
+        'user_phone_id' => $phone->id,
+        'status' => 'pending'
+    ]);
+
+    $catalog = Catalog::find($data['catalog_id']);
+    $peers = json_decode($catalog->peers, true);
+
+    $loopCount = (int) $data['loop_count'];
+    $interval  = (int) $data['interval']; // minutes (siz oldin addMinutes ishlatgansiz)
+    $message   = $data['message_text'];
+
+    // Baza: hamma send_at lar kamida shu vaqtga teng bo'ladi (Telegram scheduling-ga xavfsiz)
+    $base = now()->addSeconds(65);
+
+    foreach ($peers as $peer) {
+        for ($i = 0; $i < $loopCount; $i++) {
+            $sendAt = $base->copy()->addMinutes($i * max(0, $interval));
+
+            TelegramMessage::create([
+                'message_group_id' => $group->id,
+                'peer' => $peer,
+                'message_text' => $message,
+                'send_at' => $sendAt,
+                'status' => 'pending',
+            ]);
         }
+        // agar peers orasida qo'shimcha spacing kerak bo'lsa, base-ni ham oshirish mumkin:
+        // $base->addSeconds( (int) env('TELEGRAM_PEER_EXTRA_GAP', 0) );
+    }
 
-        $group = MessageGroup::create([
-            'user_phone_id' => $phone->id,
-            'status' => 'pending'
-        ]);
+    SendTelegramMessages::dispatch($group->id)->onQueue('telegram');
 
-        $catalog = Catalog::find($data['catalog_id']);
-
-        $peers = json_decode($catalog->peers, true);
-
-        $loopCount = $data['loop_count'];
-        $interval  = $data['interval']; // 0 bo‘lishi mumkin
-        $message   = $data['message_text'];
-
-        foreach ($peers as $peer) {
-            for ($i = 0; $i < $loopCount; $i++) {
-                TelegramMessage::create([
-                    'message_group_id' => $group->id,
-                    'peer' => $peer,
-                    'message_text' => $message,
-                    'send_at' => $interval > 0
-                        // ? now()->addSeconds($i * $interval)
-                        ? now()->addMinutes($i * $interval)
-                        : now(),
-                    'status' => 'pending',
-                ]);
-            }
-        }
-
-        SendTelegramMessages::dispatch($group->id)->onQueue('telegram');
-        $this->tg(fn() =>
-
+    $this->tg(fn() =>
         $this->telegram->sendMessage([
             'chat_id' => $chatId,
             'text' => "✅ Xabarlar jadvali yaratildi va navbatga qo‘yildi. \n/history - orqali ularni korishingiz mumkin ",
             'reply_markup' => $this->mainMenuWithHistoryKeyboard()
-        ]));
+        ])
+    );
 
-        $user->state = null;
-        $user->value = null;
-        $user->save();
+    $user->state = null;
+    $user->value = null;
+    $user->save();
 
-        return 'ok';
-    }
+    return 'ok';
+}
+
+
     public  function cancelInlineKeyboard()
     {
         return (new Keyboard)->inline()
@@ -532,7 +601,6 @@ public function buildCatalogKeyboardForSend(int $userId, int $page = 1)
     }
     public function cancelAuth(User $user, int $chatId, ?string $callbackQueryId = null)
     {
-        // 🔹 Telefonlardagi auth jarayonlarini bekor qilish
         $user->phones()
             ->whereIn('state', ['waiting_code', 'waiting_password', 'waiting_code2'])
             ->update([
@@ -540,11 +608,9 @@ public function buildCatalogKeyboardForSend(int $userId, int $page = 1)
                 'code' => null
             ]);
 
-        // 🔹 User state tozalash
         $user->state = null;
         $user->save();
 
-        // 🔹 Agar callback bo‘lsa — answerCallbackQuery
         if ($callbackQueryId) {
             $this->telegram->answerCallbackQuery([
                 'callback_query_id' => $callbackQueryId,

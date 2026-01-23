@@ -96,10 +96,8 @@ class TelegramController extends Controller
     }
     public function cancel(MessageGroup $group): RedirectResponse
     {
-        // (ixtiyoriy) permission check
-        // abort_if(auth()->user()->role?->name !== 'superadmin', 403);
 
-        // Job dispatch
+        $group->update(['status' => 'canceled']);
         CleanupScheduledJob::dispatch($group->id)
             ->onQueue('telegram');
 

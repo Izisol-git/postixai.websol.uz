@@ -103,52 +103,52 @@ class UserService
     }
 
     public function update(User $user, array $data, $authUser)
-{
-    return DB::transaction(function () use ($user, $data, $authUser) {
+    {
+        return DB::transaction(function () use ($user, $data, $authUser) {
 
-        // 1️⃣ Role va department cheklovi (admin faqat o'z department)
-        if ($authUser->role->name === 'admin') {
-            $data['department_id'] = $authUser->department_id;
-            $userRole = Role::where('name', 'user')->first();
-            $data['role_id'] = $userRole->id;
-        }
-
-        // 2️⃣ Password hash qilish
-        if (!empty($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        } else {
-            unset($data['password']);
-        }
-
-        // ❗ has_extra_minutes va catalog_ids ni alohida olish
-        $hasExtraMinutes = $data['has_extra_minutes'] ?? false;
-        $catalogIds = $data['catalog_ids'] ?? [];
-        unset($data['has_extra_minutes'], $data['catalog_ids']);
-
-        // 3️⃣ User update
-        $user->update($data);
-
-        // 4️⃣ MinuteAccess yangilash / yaratish
-        if ($hasExtraMinutes) {
-            $user->minuteAccess()->updateOrCreate(
-                ['user_id' => $user->id],
-                ['is_active' => true]
-            );
-        } else {
-            // agar checkbox o'chirilgan bo'lsa, relationni o'chirish yoki inactive qilish
-            if ($user->minuteAccess) {
-                $user->minuteAccess()->update(['is_active' => false]);
+            // 1️⃣ Role va department cheklovi (admin faqat o'z department)
+            if ($authUser->role->name === 'admin') {
+                $data['department_id'] = $authUser->department_id;
+                $userRole = Role::where('name', 'user')->first();
+                $data['role_id'] = $userRole->id;
             }
-        }
 
-        // 5️⃣ Catalog clone
-        if (!empty($catalogIds)) {
-            $this->cloneCatalogsForUser($catalogIds, $user->id, $authUser->id);
-        }
+            // 2️⃣ Password hash qilish
+            if (!empty($data['password'])) {
+                $data['password'] = Hash::make($data['password']);
+            } else {
+                unset($data['password']);
+            }
 
-        return $user->load(['role', 'department', 'minuteAccess']);
-    });
-}
+            // ❗ has_extra_minutes va catalog_ids ni alohida olish
+            $hasExtraMinutes = $data['has_extra_minutes'] ?? false;
+            $catalogIds = $data['catalog_ids'] ?? [];
+            unset($data['has_extra_minutes'], $data['catalog_ids']);
+
+            // 3️⃣ User update
+            $user->update($data);
+
+            // 4️⃣ MinuteAccess yangilash / yaratish
+            if ($hasExtraMinutes) {
+                $user->minuteAccess()->updateOrCreate(
+                    ['user_id' => $user->id],
+                    ['is_active' => true]
+                );
+            } else {
+                // agar checkbox o'chirilgan bo'lsa, relationni o'chirish yoki inactive qilish
+                if ($user->minuteAccess) {
+                    $user->minuteAccess()->update(['is_active' => false]);
+                }
+            }
+
+            // 5️⃣ Catalog clone
+            if (!empty($catalogIds)) {
+                $this->cloneCatalogsForUser($catalogIds, $user->id, $authUser->id);
+            }
+
+            return $user->load(['role', 'department', 'minuteAccess']);
+        });
+    }
 
 
     public function delete(User $user, $authUser)

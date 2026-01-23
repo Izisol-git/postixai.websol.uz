@@ -14,3 +14,8 @@ Route::get('/lang/{locale}', function ($locale) {
 
     return redirect()->back();
 })->name('lang.switch');
+
+Route::get('/documantation', function () {
+    return view('documentation.index');
+})->name('documentation.index');
+    

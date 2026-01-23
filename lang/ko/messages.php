@@ -200,7 +200,9 @@ return [
     'already_in_progress' => '이 전화번호를 가진 사용자의 Telegram 로그인 프로세스가 이미 진행 중입니다.',
     'started' => 'Telegram 연동 프로세스가 시작되었습니다. 잠시만 기다려 주세요.',
 ],
-
+'find'=>[
+        'filter_all_users'=>'모든 사용자',
+  ],
 
 
 ];

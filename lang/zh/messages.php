@@ -94,6 +94,9 @@ return [
     'cancel'=>'取消',
     'continue'=>'继续',
   ],
+  'find'=>[
+        'filter_all_users'=>'所有用户',
+  ],
   'login' => [
     'title' => '登录',
     'welcome' => '欢迎',

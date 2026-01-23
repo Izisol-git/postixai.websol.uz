@@ -95,7 +95,7 @@
             <div class="d-flex justify-content-between align-items-center mb-2">
               <div>
                 <strong>{{ $u->name }}</strong>
-                <div class="text-muted small">{{ $u->ops_count }} {{ __('messages.admin.operations') }} • {{ \Carbon\Carbon::parse($u->last_active)->diffForHumans() }}</div>
+                <div class="text-muted small">{{ $u->ops_count }} {{ __('messages.admin.messages_count') }} • {{ \Carbon\Carbon::parse($u->last_active)->diffForHumans() }}</div>
               </div>
               <span class="badge bg-secondary">{{ __('messages.admin.active') }}</span>
             </div>

@@ -61,20 +61,20 @@ class CallbackHandler
 
         $user = User::where('telegram_id', $telegramUserId)->first();
 
-            if (str_starts_with($data, 'catalog_page_')) {
+        if (str_starts_with($data, 'catalog_page_')) {
 
-                $page = (int) str_replace('catalog_page_', '', $data);
+            $page = (int) str_replace('catalog_page_', '', $data);
 
-                $this->telegram->editMessageText([
-                    'chat_id' => $chatId,
-                    'message_id' => $callback->getMessage()->getMessageId(),
-                    'text' => 'Iltimos, catalog tanlang:',
-                    'reply_markup' => $this->tgService->buildCatalogKeyboard($user->id, $page)
-                ]);
+            $this->telegram->editMessageText([
+                'chat_id' => $chatId,
+                'message_id' => $callback->getMessage()->getMessageId(),
+                'text' => 'Iltimos, catalog tanlang:',
+                'reply_markup' => $this->tgService->buildCatalogKeyboard($user->id, $page)
+            ]);
 
-                return 'ok';
-            }
-            if (str_starts_with($data, 'catalog_send_page_')) {
+            return 'ok';
+        }
+        if (str_starts_with($data, 'catalog_send_page_')) {
 
             $page = (int) str_replace('catalog_send_page_', '', $data);
 
@@ -89,305 +89,311 @@ class CallbackHandler
             return 'ok';
         }
 
-            if (str_starts_with($data, 'phone_page_')) {
+        if (str_starts_with($data, 'phone_page_')) {
 
-                $page = (int) str_replace('phone_page_', '', $data);
+            $page = (int) str_replace('phone_page_', '', $data);
 
-                $phones = $user->phones()->get();
+            $phones = $user->phones()->get();
 
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => '📱 Telefon raqamini tanlang:',
-                        'reply_markup' => $this->tgService->buildPhoneSelectKeyboard($phones, $page),
-                    ])
-                );
-
-                return 'ok';
-            }
-            if (str_starts_with($data, 'phone_delete_confirm_')) {
-
-                $phoneId = (int) str_replace('phone_delete_confirm_', '', $data);
-
-                $phone = UserPhone::where('id', $phoneId)
-                    ->where('user_id', $user->id)
-                    ->first();
-
-                TelegramLogoutJob::dispatch($phoneId)->onQueue('telegram');
-                sleep(3);
-
-                $phones = $user->phones()->get();
-
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => '🗑 Telefon o‘chirildi.',
-                        'reply_markup' => $phones->isEmpty()
-                            ? Keyboard::make()
-                            ->setResizeKeyboard(true)
-                            ->setOneTimeKeyboard(true)
-                            ->row([
-                                Keyboard::button([
-                                    'text' => '📱 Telefon raqamini yuborish',
-                                    'request_contact' => true,
-                                ])
-                            ])
-                            : $this->tgService->buildPhoneSelectKeyboard($phones),
-                    ])
-                );
-
-                return 'ok';
-            }
-            if (str_starts_with($data, 'phone_delete_')) {
-
-                $phoneId = (int) str_replace('phone_delete_', '', $data);
-
-                $phone = UserPhone::where('id', $phoneId)
-                    ->where('user_id', $user->id)
-                    ->first();
-
-                if (!$phone) {
-                    return 'ok';
-                }
-
-                $confirmKeyboard = (new Keyboard)->inline()
-                    ->row([
-                        Keyboard::inlineButton([
-                            'text' => '✅ Ha, o‘chirish',
-                            'callback_data' => 'phone_delete_confirm_' . $phone->id,
-                        ]),
-                        Keyboard::inlineButton([
-                            'text' => '❌ Yo‘q',
-                            'callback_data' => 'cancel_auth',
-                        ]),
-                    ]);
-
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => "⚠️ Raqamni o‘chirishni tasdiqlaysizmi?\n{$phone->phone}",
-                        'reply_markup' => $confirmKeyboard,
-                    ])
-                );
-
-                return 'ok';
-            }
-            if (str_starts_with($data, 'phone_choose_')) {
-
-                $phoneId = (int) str_replace('phone_choose_', '', $data);
-
-                $phone = UserPhone::where('id', $phoneId)
-                    ->where('user_id', $user->id)
-                    ->first();
-
-                if (!$phone) {
-                    return 'ok';
-                }
-
-                $keyboard = (new Keyboard)->inline()
-                    ->row([
-                        Keyboard::inlineButton([
-                            'text' => '🗑 O‘chirish',
-                            'callback_data' => 'phone_delete_' . $phone->id,
-                        ]),
-                    ])
-                    ->row([
-                        Keyboard::inlineButton([
-                            'text' => '❌ Bekor qilish',
-                            'callback_data' => 'cancel_auth',
-                        ]),
-                    ]);
-
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => "📱 Tanlangan raqam:\n{$phone->phone}\n\nQanday amal bajariladi?",
-                        'reply_markup' => $keyboard,
-                    ])
-                );
-
-                return 'ok';
-            }
-            if (str_starts_with($data, 'groups_page_')) {
-
-                $page = (int) str_replace('groups_page_', '', $data);
-
-                $this->telegram->editMessageText([
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->sendMessage([
                     'chat_id' => $chatId,
-                    'message_id' => $callback->getMessage()->getMessageId(),
-                    'text' => '📨 Xabarlar:',
-                    'reply_markup' => $this->tgService->buildGroupKeyboard($user, $page)
+                    'text' => '📱 Telefon raqamini tanlang:',
+                    'reply_markup' => $this->tgService->buildPhoneSelectKeyboard($phones, $page),
+                ])
+            );
+
+            return 'ok';
+        }
+        if (str_starts_with($data, 'phone_delete_confirm_')) {
+
+            $phoneId = (int) str_replace('phone_delete_confirm_', '', $data);
+
+            $phone = UserPhone::where('id', $phoneId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            TelegramLogoutJob::dispatch($phoneId)->onQueue('telegram');
+            sleep(3);
+
+            $phones = $user->phones()->get();
+
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => '🗑 Telefon o‘chirildi.',
+                    'reply_markup' => $phones->isEmpty()
+                        ? Keyboard::make()
+                        ->setResizeKeyboard(true)
+                        ->setOneTimeKeyboard(true)
+                        ->row([
+                            Keyboard::button([
+                                'text' => '📱 Telefon raqamini yuborish',
+                                'request_contact' => true,
+                            ])
+                        ])
+                        : $this->tgService->buildPhoneSelectKeyboard($phones),
+                ])
+            );
+
+            return 'ok';
+        }
+        if (str_starts_with($data, 'phone_delete_')) {
+
+            $phoneId = (int) str_replace('phone_delete_', '', $data);
+
+            $phone = UserPhone::where('id', $phoneId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$phone) {
+                return 'ok';
+            }
+
+            $confirmKeyboard = (new Keyboard)->inline()
+                ->row([
+                    Keyboard::inlineButton([
+                        'text' => '✅ Ha, o‘chirish',
+                        'callback_data' => 'phone_delete_confirm_' . $phone->id,
+                    ]),
+                    Keyboard::inlineButton([
+                        'text' => '❌ Yo‘q',
+                        'callback_data' => 'cancel_auth',
+                    ]),
                 ]);
 
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => "⚠️ Raqamni o‘chirishni tasdiqlaysizmi?\n{$phone->phone}",
+                    'reply_markup' => $confirmKeyboard,
+                ])
+            );
+
+            return 'ok';
+        }
+        if (str_starts_with($data, 'phone_choose_')) {
+
+            $phoneId = (int) str_replace('phone_choose_', '', $data);
+
+            $phone = UserPhone::where('id', $phoneId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$phone) {
                 return 'ok';
             }
-            if (str_starts_with($data, 'catalog_edit_removepage_')) {
 
-    $catalogId = (int) str_replace('catalog_edit_removepage_', '', $data);
-    $catalog = Catalog::find($catalogId);
-
-    if (!$catalog) {
-        $this->tgService->tg(fn() =>
-            $this->telegram->sendMessage([
-                'chat_id' => $chatId,
-                'text' => "⚠️ Catalog topilmadi."
-            ])
-        );
-        return 'ok';
-    }
-
-    $peers = json_decode($catalog->peers ?? '[]', true);
-
-    $text = "➖ *Peerlarni o‘chirish* — {$catalog->title}\n\n";
-    if (empty($peers)) {
-        $text .= "— Peerlar yo‘q";
-        $keyboard = (new Keyboard)->inline()
-            ->row([
-                Keyboard::inlineButton([
-                    'text' => '🔙 Orqaga',
-                    'callback_data' => 'catalog_edit_' . $catalog->id
+            $keyboard = (new Keyboard)->inline()
+                ->row([
+                    Keyboard::inlineButton([
+                        'text' => '🗑 O‘chirish',
+                        'callback_data' => 'phone_delete_' . $phone->id,
+                    ]),
                 ])
-            ]);
-    } else {
-        $keyboard = (new Keyboard)->inline();
+                ->row([
+                    Keyboard::inlineButton([
+                        'text' => '❌ Bekor qilish',
+                        'callback_data' => 'cancel_auth',
+                    ]),
+                ]);
 
-        // Har bir peer uchun o'chirish tugmasi
-        foreach ($peers as $i => $peer) {
-            $display = ($i + 1) . ". " . $peer;
-            $keyboard->row([
-                Keyboard::inlineButton([
-                    'text' => $display,
-                    'callback_data' => 'catalog_edit_remove_' . $catalog->id . '_' . $i
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => "📱 Tanlangan raqam:\n{$phone->phone}\n\nQanday amal bajariladi?",
+                    'reply_markup' => $keyboard,
                 ])
-            ]);
+            );
+
+            return 'ok';
         }
+        if (str_starts_with($data, 'groups_page_')) {
 
-        // Oxirgi qatorda ortga tugma
-        $keyboard->row([
-            Keyboard::inlineButton([
-                'text' => '🔙 Orqaga',
-                'callback_data' => 'catalog_edit_' . $catalog->id
-            ])
-        ]);
-    }
+            $page = (int) str_replace('groups_page_', '', $data);
 
-    $this->tgService->tg(fn() =>
-        $this->telegram->sendMessage([
-            'chat_id' => $chatId,
-            'text' => $text,
-            'parse_mode' => 'Markdown',
-            'reply_markup' => $keyboard
-        ])
-    );
-
-    return 'ok';
-}
-if (preg_match('/^catalog_edit_remove_(\d+)_(\d+)$/', $data, $m)) {
-
-    $catalogId = (int)$m[1];
-    $index = (int)$m[2];
-
-    $catalog = Catalog::find($catalogId);
-    if (!$catalog) {
-        $this->tgService->tg(fn() =>
-            $this->telegram->sendMessage([
-                'chat_id' => $chatId,
-                'text' => "⚠️ Catalog topilmadi."
-            ])
-        );
-        return 'ok';
-    }
-
-    $peers = json_decode($catalog->peers ?? '[]', true);
-
-    if (!isset($peers[$index])) {
-        // Index noto'g'ri bo'lsa, quick alert
-        $this->tgService->tg(fn() =>
-            $this->telegram->answerCallbackQuery([
-                'callback_query_id' => $callback->getId(),
-                'text' => 'Tanlangan peer topilmadi.',
-                'show_alert' => false
-            ])
-        );
-        return 'ok';
-    }
-
-    $removed = $peers[$index];
-    // remove and reindex
-    array_splice($peers, $index, 1);
-    $peers = array_values($peers);
-
-    $catalog->peers = json_encode($peers);
-    $catalog->save();
-
-    // Agar hali peerlar qolgan bo'lsa — yangilangan remove-listni EDIT qilib ko'rsatamiz
-    if (!empty($peers)) {
-        $text = "➖ *Peerlarni o‘chirish* — {$catalog->title}\n\n";
-        $text .= "Qaysi peerni o‘chirmoqchisiz? (so‘nggi o‘chirildi: `{$removed}`)\n\n";
-
-        $keyboard = (new Keyboard)->inline();
-
-        foreach ($peers as $i => $peer) {
-            $display = ($i + 1) . ". " . $peer;
-            $keyboard->row([
-                Keyboard::inlineButton([
-                    'text' => $display,
-                    'callback_data' => 'catalog_edit_remove_' . $catalog->id . '_' . $i
-                ])
-            ]);
-        }
-
-        // Ortga tugma
-        $keyboard->row([
-            Keyboard::inlineButton([
-                'text' => '🔙 Orqaga',
-                'callback_data' => 'catalog_edit_' . $catalog->id
-            ])
-        ]);
-
-        // Edit the existing message so chatda xabarlar ko‘p to‘planmaydi
-        $this->tgService->tg(fn() =>
             $this->telegram->editMessageText([
                 'chat_id' => $chatId,
                 'message_id' => $callback->getMessage()->getMessageId(),
-                'text' => $text,
-                'parse_mode' => 'Markdown',
-                'reply_markup' => $keyboard
-            ])
-        );
+                'text' => '📨 Xabarlar:',
+                'reply_markup' => $this->tgService->buildGroupKeyboard($user, $page)
+            ]);
 
-        return 'ok';
-    }
+            return 'ok';
+        }
+        if (str_starts_with($data, 'catalog_edit_removepage_')) {
 
-    // Agar peerlar tugagan bo'lsa — tahrir paneliga qaytamiz
-    $this->tgService->tg(fn() =>
-        $this->telegram->editMessageText([
-            'chat_id' => $chatId,
-            'message_id' => $callback->getMessage()->getMessageId(),
-            'text' => "✅ Peer o‘chirildi: `{$removed}`\n\nCatalogda endi peerlar yo‘q.",
-            'parse_mode' => 'Markdown',
-            'reply_markup' => (new Keyboard)->inline()->row([
-                Keyboard::inlineButton([
-                    'text' => '🔙 Tahrirlashga qaytish',
-                    'callback_data' => 'catalog_edit_' . $catalog->id
-                ]),
-                Keyboard::inlineButton([
-                    'text' => '⬅ Catalogga qaytish',
-                    'callback_data' => 'catalog_select_' . $catalog->id
+            $catalogId = (int) str_replace('catalog_edit_removepage_', '', $data);
+            $catalog = Catalog::find($catalogId);
+
+            if (!$catalog) {
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => "⚠️ Catalog topilmadi."
+                    ])
+                );
+                return 'ok';
+            }
+
+            $peers = json_decode($catalog->peers ?? '[]', true);
+
+            $text = "➖ *Peerlarni o‘chirish* — {$catalog->title}\n\n";
+            if (empty($peers)) {
+                $text .= "— Peerlar yo‘q";
+                $keyboard = (new Keyboard)->inline()
+                    ->row([
+                        Keyboard::inlineButton([
+                            'text' => '🔙 Orqaga',
+                            'callback_data' => 'catalog_edit_' . $catalog->id
+                        ])
+                    ]);
+            } else {
+                $keyboard = (new Keyboard)->inline();
+
+                // Har bir peer uchun o'chirish tugmasi
+                foreach ($peers as $i => $peer) {
+                    $display = ($i + 1) . ". " . $peer;
+                    $keyboard->row([
+                        Keyboard::inlineButton([
+                            'text' => $display,
+                            'callback_data' => 'catalog_edit_remove_' . $catalog->id . '_' . $i
+                        ])
+                    ]);
+                }
+
+                // Oxirgi qatorda ortga tugma
+                $keyboard->row([
+                    Keyboard::inlineButton([
+                        'text' => '🔙 Orqaga',
+                        'callback_data' => 'catalog_edit_' . $catalog->id
+                    ])
+                ]);
+            }
+
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => $text,
+                    'parse_mode' => 'Markdown',
+                    'reply_markup' => $keyboard
                 ])
-            ])
-        ])
-    );
+            );
 
-    return 'ok';
-}
+            return 'ok';
+        }
+        if (preg_match('/^catalog_edit_remove_(\d+)_(\d+)$/', $data, $m)) {
+
+            $catalogId = (int)$m[1];
+            $index = (int)$m[2];
+
+            $catalog = Catalog::find($catalogId);
+            if (!$catalog) {
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => "⚠️ Catalog topilmadi."
+                    ])
+                );
+                return 'ok';
+            }
+
+            $peers = json_decode($catalog->peers ?? '[]', true);
+
+            if (!isset($peers[$index])) {
+                // Index noto'g'ri bo'lsa, quick alert
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->answerCallbackQuery([
+                        'callback_query_id' => $callback->getId(),
+                        'text' => 'Tanlangan peer topilmadi.',
+                        'show_alert' => false
+                    ])
+                );
+                return 'ok';
+            }
+
+            $removed = $peers[$index];
+            // remove and reindex
+            array_splice($peers, $index, 1);
+            $peers = array_values($peers);
+
+            $catalog->peers = json_encode($peers);
+            $catalog->save();
+
+            // Agar hali peerlar qolgan bo'lsa — yangilangan remove-listni EDIT qilib ko'rsatamiz
+            if (!empty($peers)) {
+                $text = "➖ *Peerlarni o‘chirish* — {$catalog->title}\n\n";
+                $text .= "Qaysi peerni o‘chirmoqchisiz? (so‘nggi o‘chirildi: `{$removed}`)\n\n";
+
+                $keyboard = (new Keyboard)->inline();
+
+                foreach ($peers as $i => $peer) {
+                    $display = ($i + 1) . ". " . $peer;
+                    $keyboard->row([
+                        Keyboard::inlineButton([
+                            'text' => $display,
+                            'callback_data' => 'catalog_edit_remove_' . $catalog->id . '_' . $i
+                        ])
+                    ]);
+                }
+
+                // Ortga tugma
+                $keyboard->row([
+                    Keyboard::inlineButton([
+                        'text' => '🔙 Orqaga',
+                        'callback_data' => 'catalog_edit_' . $catalog->id
+                    ])
+                ]);
+
+                // Edit the existing message so chatda xabarlar ko‘p to‘planmaydi
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->editMessageText([
+                        'chat_id' => $chatId,
+                        'message_id' => $callback->getMessage()->getMessageId(),
+                        'text' => $text,
+                        'parse_mode' => 'Markdown',
+                        'reply_markup' => $keyboard
+                    ])
+                );
+
+                return 'ok';
+            }
+
+            // Agar peerlar tugagan bo'lsa — tahrir paneliga qaytamiz
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->editMessageText([
+                    'chat_id' => $chatId,
+                    'message_id' => $callback->getMessage()->getMessageId(),
+                    'text' => "✅ Peer o‘chirildi: `{$removed}`\n\nCatalogda endi peerlar yo‘q.",
+                    'parse_mode' => 'Markdown',
+                    'reply_markup' => (new Keyboard)->inline()->row([
+                        Keyboard::inlineButton([
+                            'text' => '🔙 Tahrirlashga qaytish',
+                            'callback_data' => 'catalog_edit_' . $catalog->id
+                        ]),
+                        Keyboard::inlineButton([
+                            'text' => '⬅ Catalogga qaytish',
+                            'callback_data' => 'catalog_select_' . $catalog->id
+                        ])
+                    ])
+                ])
+            );
+
+            return 'ok';
+        }
 
 
-            if (str_starts_with($data, 'catalog_edit_addpeer_')) {
+        if (str_starts_with($data, 'catalog_edit_addpeer_')) {
             $catalogId = (int) str_replace('catalog_edit_addpeer_', '', $data);
 
             $user->state = 'adding_peers_to_catalog';
@@ -405,7 +411,7 @@ if (preg_match('/^catalog_edit_remove_(\d+)_(\d+)$/', $data, $m)) {
 
             return 'ok';
         }
-        
+
         if (str_starts_with($data, 'catalog_edit_name_')) {
             $catalogId = (int) str_replace('catalog_edit_name_', '', $data);
 
@@ -517,47 +523,47 @@ if (preg_match('/^catalog_edit_remove_(\d+)_(\d+)$/', $data, $m)) {
             $catalogId = (int) str_replace('catalog_send_select_', '', $data);
 
 
+            return 'ok';
+        }
+        if (str_starts_with($data, 'catalog_select_')) {
+
+            $catalogId = (int) str_replace('catalog_select_', '', $data);
+            $catalog = Catalog::find($catalogId);
+
+            if (!$catalog) {
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->answerCallbackQuery([
+                        'callback_query_id' => $callback->getId(),
+                        'text' => '⚠️ Catalog topilmadi.'
+                    ])
+                );
                 return 'ok';
             }
-            if (str_starts_with($data, 'catalog_select_')) {
 
-                $catalogId = (int) str_replace('catalog_select_', '', $data);
-                $catalog = Catalog::find($catalogId);
+            $peers = json_decode($catalog->peers ?? '[]', true);
 
-                if (!$catalog) {
-                    $this->tgService->tg(
-                        fn() =>
-                        $this->telegram->sendMessage([
-                            'chat_id' => $chatId,
-                            'text' => "⚠️ Catalog topilmadi."
-                        ])
-                    );
-                    return 'ok';
+            // 📌 Text
+            $text  = "📂 *Catalog:* {$catalog->title}\n\n";
+            $text .= "👥 *Peerlar:*\n";
+
+            if (empty($peers)) {
+                $text .= "— Peerlar yo‘q\n";
+            } else {
+                foreach ($peers as $i => $peer) {
+                    $text .= ($i + 1) . ". {$peer}\n";
                 }
+            }
 
-                $peers = json_decode($catalog->peers ?? '[]', true);
+            $text .= "\n📌 Peerlar soni: " . count($peers);
+            $text .= "\n\nQuyidagi amalni tanlang:";
 
-                // 📌 Text
-                $text  = "📂 *Catalog:* {$catalog->title}\n\n";
-                $text .= "👥 *Peerlar:*\n";
-
-                if (empty($peers)) {
-                    $text .= "— Peerlar yo‘q\n";
-                } else {
-                    foreach ($peers as $i => $peer) {
-                        $text .= ($i + 1) . ". `{$peer}`\n";
-                    }
-                }
-
-                $text .= "\n📌 Peerlar soni: " . count($peers);
-                $text .= "\n\nQuyidagi amalni tanlang:";
-
-                // 🔘 Keyboard
-                $keyboard = (new Keyboard)->inline()
-                    ->row([
-                        Keyboard::inlineButton([
-                            'text' => '▶️ Xabar yuborish',
-                            'callback_data' => 'catalog_start_' . $catalog->id
+            // 🔘 Inline keyboard
+            $keyboard = (new Keyboard)->inline()
+                ->row([
+                    Keyboard::inlineButton([
+                        'text' => '▶️ Xabar yuborish',
+                        'callback_data' => 'catalog_start_' . $catalog->id
                     ]),
                     Keyboard::inlineButton([
                         'text' => '🗑 Catalogni o‘chirish',
@@ -575,11 +581,67 @@ if (preg_match('/^catalog_edit_remove_(\d+)_(\d+)$/', $data, $m)) {
                     ])
                 ]);
 
+            // ❗ ESki message update qilinadi
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->editMessageText([
+                    'chat_id'    => $chatId,
+                    'message_id' => $callback->getMessage()->getMessageId(),
+                    'text'       => $text,
+                    // 'parse_mode' => 'Markdown',
+                    'reply_markup' => $keyboard
+                ])
+            );
+
+            // loading'ni yopish
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->answerCallbackQuery([
+                    'callback_query_id' => $callback->getId()
+                ])
+            );
+
+            return 'ok';
+        }
+
+
+
+
+
+        if (str_starts_with($data, 'catalog_delete_')) {
+
+            $catalogId = (int) str_replace('catalog_delete_', '', $data);
+            $catalog = \App\Models\Catalog::find($catalogId);
+
+            if (!$catalog) {
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->answerCallbackQuery([
+                        'callback_query_id' => $callback->getId(),
+                        'text' => '⚠️ Catalog topilmadi',
+                        'show_alert' => true
+                    ])
+                );
+                return 'ok';
+            }
+
+            $keyboard = (new Keyboard)->inline()
+                ->row([
+                    Keyboard::inlineButton([
+                        'text' => '✅ Ha, o‘chirish',
+                        'callback_data' => 'delete_catalog_confirm_' . $catalog->id
+                    ]),
+                    Keyboard::inlineButton([
+                        'text' => '❌ Yo‘q',
+                        'callback_data' => 'catalog_select_' . $catalog->id
+                    ]),
+                ]);
+
             $this->tgService->tg(
                 fn() =>
                 $this->telegram->sendMessage([
                     'chat_id' => $chatId,
-                    'text' => $text,
+                    'text' => "❗ *{$catalog->title}* catalogini o‘chirmoqchimisiz?\n\nBu amalni bekor qilib bo‘lmaydi.",
                     'parse_mode' => 'Markdown',
                     'reply_markup' => $keyboard
                 ])
@@ -587,246 +649,211 @@ if (preg_match('/^catalog_edit_remove_(\d+)_(\d+)$/', $data, $m)) {
 
             return 'ok';
         }
-        
+        if (str_starts_with($data, 'delete_catalog_confirm_')) {
 
+            $catalogId = (int) str_replace('delete_catalog_confirm_', '', $data);
+            $catalog = \App\Models\Catalog::find($catalogId);
 
-
-        if (str_starts_with($data, 'catalog_delete_')) {
-
-                $catalogId = (int) str_replace('catalog_delete_', '', $data);
-                $catalog = \App\Models\Catalog::find($catalogId);
-
-                if (!$catalog) {
-                    $this->tgService->tg(
-                        fn() =>
-                        $this->telegram->answerCallbackQuery([
-                            'callback_query_id' => $callback->getId(),
-                            'text' => '⚠️ Catalog topilmadi',
-                            'show_alert' => true
-                        ])
-                    );
-                    return 'ok';
-                }
-
-                $keyboard = (new Keyboard)->inline()
-                    ->row([
-                        Keyboard::inlineButton([
-                            'text' => '✅ Ha, o‘chirish',
-                            'callback_data' => 'delete_catalog_confirm_' . $catalog->id
-                        ]),
-                        Keyboard::inlineButton([
-                            'text' => '❌ Yo‘q',
-                            'callback_data' => 'catalog_select_' . $catalog->id
-                        ]),
-                    ]);
-
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => "❗ *{$catalog->title}* catalogini o‘chirmoqchimisiz?\n\nBu amalni bekor qilib bo‘lmaydi.",
-                        'parse_mode' => 'Markdown',
-                        'reply_markup' => $keyboard
-                    ])
-                );
-
-                return 'ok';
+            if ($catalog) {
+                $catalog->delete();
             }
-            if (str_starts_with($data, 'delete_catalog_confirm_')) {
-                $catalogId = (int) str_replace('delete_catalog_confirm_', '', $data);
-                $catalog = \App\Models\Catalog::find($catalogId);
-                Log::info($data);
-                Log::info($catalog);
 
-                if ($catalog) {
-                    Log::info('catalog');
+            // ❗ ESki message ni tahrirlash (inline keyboard olib tashlanadi)
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->editMessageText([
+                    'chat_id'    => $chatId,
+                    'message_id' => $callback->getMessage()->getMessageId(),
+                    'text'       => "🗑 Catalog muvaffaqiyatli o‘chirildi.",
+                ])
+            );
 
-                    $catalog->delete();
-                }
+            // Callback'ni yopish (loading aylanishini to‘xtatish)
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->answerCallbackQuery([
+                    'callback_query_id' => $callback->getId()
+                ])
+            );
 
-                $keyboard = Keyboard::make()
-                    ->setResizeKeyboard(true)
-                    ->row([
-                        Keyboard::button('Cataloglar'),
-                    ]);
+            return 'ok';
+        }
 
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => '🗑 Catalog muvaffaqiyatli o‘chirildi.',
-                        'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard()
-                    ])
-                );
+        if ($data === 'catalog_delete_cancel') {
 
-                return 'ok';
-            }
-            if ($data === 'catalog_delete_cancel') {
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->editMessageText([
+                    'chat_id'    => $chatId,
+                    'message_id' => $callback->getMessage()->getMessageId(),
+                    'text'       => "❌ Catalog o‘chirish bekor qilindi."
+                ])
+            );
 
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->answerCallbackQuery([
-                        'callback_query_id' => $callback->getId(),
-                        'text' => 'Bekor qilindi'
-                    ])
-                );
-
-                return 'ok';
-            }
-            if (str_starts_with($data, 'catalog_start_')) {
-
-                $catalogId = str_replace('catalog_start_', '', $data);
-
-                $phones = $user->phones()
-                    ->where('is_active', true)
-                    ->get()
-                    ->toArray();
-
-                $keyboard = $this->tgService->buildPhoneKeyboard($phones);
-
-                $user->state = 'phone_selected';
-
-                $json = json_encode([
-                    'catalog_id'   => $catalogId,
-                    // 'phone_id'     => null,
-                    // 'message_text' => null,
-                    // 'interval'     => null,
-                    // 'loop_count'   => null,
-                ], JSON_UNESCAPED_UNICODE);
-
-                $user->value = $json;
-                $user->save();
-
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => empty($phones)
-                            ? "Telefonlar mavjud emas."
-                            : "Telefonni tanlang:",
-                        'reply_markup' => $keyboard
-                    ])
-                );
-
-                return 'ok';
-            }
-            if (str_starts_with($data, 'group_select_')) {
-                $groupId = (int) str_replace('group_select_', '', $data);
-                $this->tgService->handleGroupSelect($groupId, $chatId);
-            }
-            if (str_starts_with($data, 'phone_select_')) {
-                $phoneId = str_replace('phone_select_', '', $data);
-
-                $phone = UserPhone::find($phoneId);
-
-                if (!$phone) {
-                    $this->tgService->tg(fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => "Telefon topilmadi."
-                    ]));
-                    return 'ok';
-                }
-
-                $user = $phone->user;
-
-                $user->state = 'phone_selected';
-                $phoneData = json_decode($user->value, true);
-                $phoneData['phone_id'] = $phone->id;
-                $user->value = json_encode($phoneData, JSON_UNESCAPED_UNICODE);
-                $user->save();
-                $this->tgService->tg(fn() =>
-                $this->telegram->sendMessage([
-                    'chat_id' => $chatId,
-                    'text' => "Telefon tanlandi. Iltimos, yuboriladigan xabar matnini kiriting:",
-                    'reply_markup' => $this->tgService->cancelInlineKeyboard()
-                ]));
-                return 'ok';
-            }
-            if ($data === 'cancel_catalog') {
-                $user->state = null;
-                $user->value = null;
-                $user->save();
-                $activePhone = $user->phones()->where('is_active', true)->exists();
-                $this->tgService->tg(fn() =>
-                $this->telegram->sendMessage([
-                    'chat_id' => $chatId,
-                    'text' => 'Catalog tanlash bekor qilindi.',
-                    'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard($activePhone)
-                ]));
-                return 'ok';
-            }
-            if ($data === 'skip_password' && $user) {
-
-                $phone = $user->phones()
-                    ->whereIn('state', ['waiting_code', 'waiting_password', 'waiting_code2'])
-                    ->latest()
-                    ->first();
-
-
-                if (!$phone) {
-                    $this->tgService->tg(fn() =>
-                    $this->telegram->answerCallbackQuery([
-                        'callback_query_id' => $callback->getId(),
-                        'text' => "Holat topilmadi",
-                        'show_alert' => true,
-                        // 'reply_markup' => $cancelKeyboard
-                    ]));
-                    return 'ok';
-                }
-
-                TelegramVerifyJob::dispatch(
-                    $phone->phone,
-                    $user->id,
-                    $phone->code,
-                    null
-                )->onQueue('telegram');
-                // $phoneNumber = $phone->phone;
-                // $userId = $user->id;
-                // $code = $phone->code;
-                // $password = null;
-                // $php     = '/opt/php83/bin/php';
-                // $artisan = base_path('artisan');
-                // if ($password) {
-                //     $command = "nohup {$php} {$artisan} telegram:verify {$phoneNumber} {$userId} {$code} --password={$password} >/dev/null 2>&1 &";
-                // } else {
-                //     $command = "nohup {$php} {$artisan} telegram:verify {$phoneNumber} {$userId} {$code} >/dev/null 2>&1 &";
-                // }
-                // exec($command);
-
-                $phone->update([
-                    'code' => null,
-                    'state' => 'loggin_process'
-                ]);
-
+            $this->tgService->tg(
+                fn() =>
                 $this->telegram->answerCallbackQuery([
                     'callback_query_id' => $callback->getId(),
-                    'text' => "Password o'tkazib yuborildi",
-                    'show_alert' => false,
-                    'reply_markup' => $this->tgService->cancelInlineKeyboard()
+                    'text' => 'Bekor qilindi'
+                ])
+            );
 
-                ]);
-                $keyboard = Keyboard::make()
-                    ->setResizeKeyboard(true)
-                    ->setOneTimeKeyboard(true)
-                    ->row([
-                        Keyboard::button('📱 Telefonlarim'),
-                    ]);
-                sleep(3);
-                $this->tgService->tg(fn() =>
+            return 'ok';
+        }
 
+        if (str_starts_with($data, 'catalog_start_')) {
+
+            $catalogId = str_replace('catalog_start_', '', $data);
+
+            $phones = $user->phones()
+                ->where('is_active', true)
+                ->get()
+                ->toArray();
+
+            $keyboard = $this->tgService->buildPhoneKeyboard($phones);
+
+            $user->state = 'phone_selected';
+
+            $json = json_encode([
+                'catalog_id'   => $catalogId,
+                // 'phone_id'     => null,
+                // 'message_text' => null,
+                // 'interval'     => null,
+                // 'loop_count'   => null,
+            ], JSON_UNESCAPED_UNICODE);
+
+            $user->value = $json;
+            $user->save();
+
+            $this->tgService->tg(
+                fn() =>
                 $this->telegram->sendMessage([
                     'chat_id' => $chatId,
-                    'text' => "Tasdiqlash jarayoni boshlandi 🎉",
-                    'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard(true)
+                    'text' => empty($phones)
+                        ? "Telefonlar mavjud emas."
+                        : "Telefonni tanlang:",
+                    'reply_markup' => $keyboard
+                ])
+            );
 
-
-                ]));
-            }
-            if ($data === 'cancel_auth' && $user) {
-                return $this->tgService->cancelAuth($user, $chatId, $callback->getId());
-            }
             return 'ok';
+        }
+        if (str_starts_with($data, 'group_select_')) {
+            $groupId = (int) str_replace('group_select_', '', $data);
+            $this->tgService->handleGroupSelect($groupId, $chatId);
+        }
+        if (str_starts_with($data, 'phone_select_')) {
+            $phoneId = str_replace('phone_select_', '', $data);
 
+            $phone = UserPhone::find($phoneId);
+
+            if (!$phone) {
+                $this->tgService->tg(fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => "Telefon topilmadi."
+                ]));
+                return 'ok';
+            }
+
+            $user = $phone->user;
+
+            $user->state = 'phone_selected';
+            $phoneData = json_decode($user->value, true);
+            $phoneData['phone_id'] = $phone->id;
+            $user->value = json_encode($phoneData, JSON_UNESCAPED_UNICODE);
+            $user->save();
+            $this->tgService->tg(fn() =>
+            $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => "Telefon tanlandi. Iltimos, yuboriladigan xabar matnini kiriting:",
+                'reply_markup' => $this->tgService->cancelInlineKeyboard()
+            ]));
+            return 'ok';
+        }
+        if ($data === 'cancel_catalog') {
+            $user->state = null;
+            $user->value = null;
+            $user->save();
+            $activePhone = $user->phones()->where('is_active', true)->exists();
+            $this->tgService->tg(fn() =>
+            $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => 'Catalog tanlash bekor qilindi.',
+                'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard($activePhone)
+            ]));
+            return 'ok';
+        }
+        if ($data === 'skip_password' && $user) {
+
+            $phone = $user->phones()
+                ->whereIn('state', ['waiting_code', 'waiting_password', 'waiting_code2'])
+                ->latest()
+                ->first();
+
+
+            if (!$phone) {
+                $this->tgService->tg(fn() =>
+                $this->telegram->answerCallbackQuery([
+                    'callback_query_id' => $callback->getId(),
+                    'text' => "Holat topilmadi",
+                    'show_alert' => true,
+                    // 'reply_markup' => $cancelKeyboard
+                ]));
+                return 'ok';
+            }
+
+            TelegramVerifyJob::dispatch(
+                $phone->phone,
+                $user->id,
+                $phone->code,
+                null
+            )->onQueue('telegram');
+            // $phoneNumber = $phone->phone;
+            // $userId = $user->id;
+            // $code = $phone->code;
+            // $password = null;
+            // $php     = '/opt/php83/bin/php';
+            // $artisan = base_path('artisan');
+            // if ($password) {
+            //     $command = "nohup {$php} {$artisan} telegram:verify {$phoneNumber} {$userId} {$code} --password={$password} >/dev/null 2>&1 &";
+            // } else {
+            //     $command = "nohup {$php} {$artisan} telegram:verify {$phoneNumber} {$userId} {$code} >/dev/null 2>&1 &";
+            // }
+            // exec($command);
+
+            $phone->update([
+                'code' => null,
+                'state' => 'loggin_process'
+            ]);
+
+            $this->telegram->answerCallbackQuery([
+                'callback_query_id' => $callback->getId(),
+                'text' => "Password o'tkazib yuborildi",
+                'show_alert' => false,
+                'reply_markup' => $this->tgService->cancelInlineKeyboard()
+
+            ]);
+            $keyboard = Keyboard::make()
+                ->setResizeKeyboard(true)
+                ->setOneTimeKeyboard(true)
+                ->row([
+                    Keyboard::button('📱 Telefonlarim'),
+                ]);
+            sleep(3);
+            $this->tgService->tg(fn() =>
+
+            $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => "Tasdiqlash jarayoni boshlandi 🎉",
+                'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard(true)
+
+
+            ]));
+        }
+        if ($data === 'cancel_auth' && $user) {
+            return $this->tgService->cancelAuth($user, $chatId, $callback->getId());
+        }
+        return 'ok';
     }
 }

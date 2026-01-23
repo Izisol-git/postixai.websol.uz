@@ -215,7 +215,9 @@ return [
     'already_in_progress' => 'The Telegram login process for a user with this phone number is already in progress.',
     'started' => 'The process of connecting to Telegram has started. Please wait.',
 ],
-
+'find'=>[
+        'filter_all_users'=>'All users',
+  ],
 
 
 ];

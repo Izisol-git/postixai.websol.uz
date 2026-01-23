@@ -12,6 +12,7 @@ use App\Application\Bot\BotContext;
 use Illuminate\Support\Facades\Log;
 use Telegram\Bot\Keyboard\Keyboard;
 use Illuminate\Support\Facades\Cache;
+use Telegram\Bot\FileUpload\InputFile;
 use App\Models\MinutePackage\MinutePackage;
 use App\Application\Services\TelegramService;
 
@@ -85,81 +86,9 @@ class MessageHandler
             ]));
             return "ok";
         }
-        if ($userState === 'adding_peers_to_catalog' && $text) {
-
-            if ($text === '/done') {
-                $user->state = null;
-                $user->value = null;
-                $user->save();
+        
 
 
-                $keyboard = Keyboard::make()
-                    ->setResizeKeyboard(true)
-                    ->setOneTimeKeyboard(true)
-                    ->row([
-                        Keyboard::button('📂 Cataloglar'),
-                    ]);
-
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => "✅ Catalog yaratish yakunlandi!",
-                        'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard(true)
-                    ])
-                );
-            } else {
-                if (!str_starts_with($text, '@') || strlen($text) < 2) {
-
-                    $this->tgService->tg(
-                        fn() =>
-                        $this->telegram->sendMessage([
-                            'chat_id' => $chatId,
-                            'text' => "❌ *Xatolik!*\n\nPeer faqat `@username` formatida bo‘lishi kerak.\n\nMisol:\n`@example_channel`",
-                            'parse_mode' => 'Markdown'
-                        ])
-                    );
-
-                    return 'ok';
-                }
-                $catalog = \App\Models\Catalog::find($user->value);
-
-                $peers = json_decode($catalog->peers ?? '[]', true);
-
-                // yangi peer qo‘shamiz
-                $peers[] = trim($text);
-
-                $catalog->peers = json_encode($peers);
-                $catalog->save();
-
-                // umumiy ro‘yxatni chiroyli qilib chiqaramiz
-                $listText = "📌 *Joriy peerlar ro‘yxati:*\n\n";
-                foreach ($peers as $index => $peer) {
-                    $num = $index + 1;
-                    $listText .= "{$num}. `{$peer}`\n";
-                }
-
-                $listText .= "\n➕ Keyingi peer yuboring yoki /done bilan yakunlang.";
-
-                $cancelKeyboard = (new Keyboard)->inline()
-                    ->row([
-                        Keyboard::inlineButton([
-                            'text' => "❌ Bekor qilish",
-                            'callback_data' => 'cancel_auth'
-                        ]),
-                    ]);
-
-                $this->tgService->tg(
-                    fn() =>
-                    $this->telegram->sendMessage([
-                        'chat_id' => $chatId,
-                        'text' => $listText,
-                        'parse_mode' => 'Markdown',
-                        'reply_markup' => $cancelKeyboard
-                    ])
-                );
-            }
-        }
         if ($user && $user->state === 'editing_catalog_name') {
             $catalogId = (int) $user->value;
             $catalog = Catalog::where('id', $catalogId)
@@ -174,27 +103,27 @@ class MessageHandler
             $user->save();
             $peers = json_decode($catalog->peers ?? '[]', true);
 
-                // 📌 Text
-                $text  = "📂 *Catalog:* {$catalog->title}\n\n";
-                $text .= "👥 *Peerlar:*\n";
+            // 📌 Text
+            $text  = "📂 *Catalog:* {$catalog->title}\n\n";
+            $text .= "👥 *Peerlar:*\n";
 
-                if (empty($peers)) {
-                    $text .= "— Peerlar yo‘q\n";
-                } else {
-                    foreach ($peers as $i => $peer) {
-                        $text .= ($i + 1) . ". `{$peer}`\n";
-                    }
+            if (empty($peers)) {
+                $text .= "— Peerlar yo‘q\n";
+            } else {
+                foreach ($peers as $i => $peer) {
+                    $text .= ($i + 1) . ". `{$peer}`\n";
                 }
+            }
 
-                $text .= "\n📌 Peerlar soni: " . count($peers);
-                $text .= "\n\nQuyidagi amalni tanlang:";
+            $text .= "\n📌 Peerlar soni: " . count($peers);
+            $text .= "\n\nQuyidagi amalni tanlang:";
 
-                // 🔘 Keyboard
-                $keyboard = (new Keyboard)->inline()
-                    ->row([
-                        Keyboard::inlineButton([
-                            'text' => '▶️ Xabar yuborish',
-                            'callback_data' => 'catalog_start_' . $catalog->id
+            // 🔘 Keyboard
+            $keyboard = (new Keyboard)->inline()
+                ->row([
+                    Keyboard::inlineButton([
+                        'text' => '▶️ Xabar yuborish',
+                        'callback_data' => 'catalog_start_' . $catalog->id
                     ]),
                     Keyboard::inlineButton([
                         'text' => '🗑 Catalogni o‘chirish',
@@ -224,7 +153,7 @@ class MessageHandler
 
             return 'ok';
         }
-        
+
         if (($text === '❌ Bekor qilish' && $user) || ($text === 'Menyu' && $user)) {
             return $this->tgService->cancelAuth($user, $chatId);
         }
@@ -294,6 +223,9 @@ class MessageHandler
             return 'ok';
         }
         if ($contact || ($user->state === 'waiting_phone' && $text)) {
+            $keyboard = Keyboard::make()
+                ->setResizeKeyboard(true)
+                ->setOneTimeKeyboard(true);
             if (!$user->oferta_read) {
                 $keyboard->row([
                     Keyboard::button([
@@ -593,10 +525,22 @@ class MessageHandler
 
             $loopCount = (int) $text;
             $phoneData = json_decode($user->value, true);
-            $phoneData['loop_count'] = $loopCount;
 
+            // Minimal va maksimal limit: 1..100
+            if ($loopCount < 1 || $loopCount > 100) {
+                $this->tgService->tg(function () use ($chatId) {
+                    $this->telegram->sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => "❌ Xabarlar soni 1 dan 100 gacha bo‘lishi kerak."
+                    ]);
+                });
+                return 'ok';
+            }
+
+            $phoneData['loop_count'] = $loopCount;
             $user->value = json_encode($phoneData, JSON_UNESCAPED_UNICODE);
 
+            // Agar loopCount > 1 bo‘lsa — intervalni tanlash
             if ($loopCount > 1) {
 
                 $user->state = 'loop_count_configured';
@@ -620,12 +564,12 @@ class MessageHandler
 
                 $keyboard = Keyboard::make()->setResizeKeyboard(true);
 
-                // ✅ 1️⃣ Avval soatlar
+                // ✅ Avval soatlar
                 foreach ($hourButtons as $row) {
                     $keyboard->row($row);
                 }
 
-                // ✅ 2️⃣ Keyin minute paketlari
+                // ✅ Keyin minute paketlari
                 if (!empty($minuteButtons)) {
                     $chunks = array_chunk($minuteButtons, 2);
                     foreach ($chunks as $row) {
@@ -644,17 +588,25 @@ class MessageHandler
                 return 'ok';
             }
 
-
-            // loopCount = 1 bo‘lsa
+            // loopCount = 1 bo‘lsa — progress bilan xabar yaratamiz
             $phoneData['interval'] = 0;
             $user->value = json_encode($phoneData, JSON_UNESCAPED_UNICODE);
             $user->state = 'ready_to_create';
             $user->save();
 
+            // ======= Yangi qo‘shimcha: total xabarlarni tekshirish =======
+            $catalog = \App\Models\Catalog::find($phoneData['catalog_id'] ?? null);
+            $peers = $catalog ? json_decode($catalog->peers ?? '[]', true) : [];
+
+
+            // ======= Xabar jadvalini yaratish va progress =======
             return $this->tgService->createMessageGroup($user, $chatId);
         }
+
+
+
         $intervalMap = [
-            '🕐 1 soat' => 60,
+            '🕐 1 soat' => 64,
             '🕑 2 soat' => 120,
             '🕒 3 soat' => 180,
             '🕓 4 soat' => 240,
@@ -771,24 +723,41 @@ class MessageHandler
         }
         if ($text === 'Qollanma') {
 
+            // 1. Fayl path (keyin o‘zing o‘zgartirasan)
+            $filePath = '' . resource_path('docs/postix_ai_guide.pdf');
             $manualPath = resource_path('texts/manual.md');
 
             $manualText = file_exists($manualPath)
                 ? file_get_contents($manualPath)
                 : 'Qollanma topilmadi.';
+            // 2. Fayl mavjudligini tekshirish
+            if (!file_exists($filePath)) {
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => '📕 Qo‘llanma topilmadi.',
+                        'reply_markup' => $this->tgService->cancelInlineKeyboard(),
+                    ])
+                );
 
+                return 'ok';
+            }
+
+            // 3. PDF yuborish
             $this->tgService->tg(
                 fn() =>
-                $this->telegram->sendMessage([
-                    'chat_id' => $chatId,
-                    'text' => $manualText,
-                    'parse_mode' => 'Markdown',
-                    'reply_markup' => $this->tgService->cancelInlineKeyboard()
+                $this->telegram->sendDocument([
+                    'chat_id'   => $chatId,
+                    'document' => InputFile::create($filePath),
+                    'caption'   => $manualText,
+                    'reply_markup' => $this->tgService->cancelInlineKeyboard(),
                 ])
             );
 
             return 'ok';
         }
+
         if ($text === 'Oferta') {
 
             $ofertaPath = resource_path('texts/offer.md');
@@ -842,6 +811,7 @@ class MessageHandler
                 ])
             );
         }
+        
         if ($text === '📱 Telefon Raqam Qoshish') {
             $keyboard = Keyboard::make()
                 ->setResizeKeyboard(true)
@@ -882,6 +852,120 @@ class MessageHandler
                 ])
             );
         }
+        if (preg_match('/^❌ Failed lar (\d+)$/', $text, $m)) {
+            $this->tgService->showFailedPeers($m[1], $chatId);
+            return;
+        }
+
+        if ($userState === 'adding_peers_to_catalog' && $text) {
+
+            if ($text === '/done') {
+                $user->state = null;
+                $user->value = null;
+                $user->save();
+
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => "✅ Jarayon yakunlandi!",
+                        'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard(true)
+                    ])
+                );
+
+                return 'ok';
+            }
+            
+
+            // 🔹 Peerlarni ajratib olish (newline, vergul, probel)
+            $rawPeers = preg_split('/[\s,]+/', trim($text));
+            $rawPeers = array_filter($rawPeers);
+
+            // 🔒 Limit (test uchun)
+            if (count($rawPeers) > 100) {
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => "❌ Maksimum 100 ta peer yuborish mumkin (hozir " . count($rawPeers) . " ta yuborildi)."
+                    ])
+                );
+                return 'ok';
+            }
+
+            $validPeers = [];
+            $invalidPeers = [];
+
+            foreach ($rawPeers as $peer) {
+                $peer = trim($peer);
+
+                // olib tashlash: oxirgi nuqta/vergul kabi belgilarning xato kiritilishini kamaytirish uchun
+                $peer = rtrim($peer, " \t\n\r\0\x0B.,;:!");
+
+                // 🔹 Agar t.me bilan boshlangan har qanday path bo'lsa — o'zgartirmasdan qabul qilamiz.
+                // Misollar: https://t.me/username, t.me/username, https://t.me/+anN6..., t.me/c/12345/67
+                if (preg_match('~^(?:https?://)?t\.me/\S+$~i', $peer)) {
+                    $validPeers[] = $peer;
+                    continue;
+                }
+
+                // ✅ Agar to'g'ri @username bo'lsa — ham qabul qilamiz
+                if (preg_match('/^@[a-zA-Z0-9_]{3,}$/', $peer)) {
+                    $validPeers[] = $peer;
+                    continue;
+                }
+
+                // Agar yuqoridagi ikkitasidan emas — xato deb hisoblaymiz
+                $invalidPeers[] = $peer;
+            }
+
+
+            if (empty($validPeers)) {
+                $this->tgService->tg(
+                    fn() =>
+                    $this->telegram->sendMessage([
+                        'chat_id' => $chatId,
+                        'text' => "❌ Yaroqli peer topilmadi.\n\nRuxsat etilgan formatlar:\n• `@username`\n• `https://t.me/username`",
+                        'parse_mode' => 'Markdown'
+                    ])
+                );
+                return 'ok';
+            }
+
+            $catalog = \App\Models\Catalog::find($user->value);
+            $peers = json_decode($catalog->peers ?? '[]', true);
+
+            // ➕ Takrorlarsiz qo‘shish
+            $peers = array_values(array_unique(array_merge($peers, $validPeers)));
+
+            $catalog->peers = json_encode($peers, JSON_UNESCAPED_UNICODE);
+            $catalog->save();
+
+            // 📋 Natija
+            $listText = "📌 *Peerlar qo‘shildi:* " . count($validPeers) . " ta\n";
+
+            if (!empty($invalidPeers)) {
+                $listText .= "\n❌ *Xato peerlar (" . count($invalidPeers) . "):*\n";
+                foreach ($invalidPeers as $p) {
+                    $listText .= "• `{$p}`\n";
+                }
+            }
+
+            $listText .= "\n📂 *Joriy peerlar soni:* " . count($peers);
+            $listText .= "\n\n➕ Yana peer yuboring yoki /done bilan yakunlang.";
+
+            $this->tgService->tg(
+                fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => $listText,
+                    'parse_mode' => 'Markdown'
+                ])
+            );
+
+            return 'ok';
+        }
         return 'ok';
     }
+    
 }

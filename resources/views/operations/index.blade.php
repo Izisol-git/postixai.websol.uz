@@ -169,7 +169,7 @@
               $pendingCount = ($total['pending'] ?? 0) + ($total['scheduled'] ?? 0);
             @endphp
 
-            @if($pendingCount > 0)
+            @if($group->status !=='canceled')
               {{-- <form method="POST" action="{{ route('message-groups.refresh', $gid) }}" class="m-0">
                 @csrf
                 <button type="submit" class="btn btn-sm btn-outline-info js-confirm-action" data-text="{{ __('messages.operations.confirm_refresh_text', ['id' => $gid]) }}">
