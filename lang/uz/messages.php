@@ -97,6 +97,7 @@ return [
         'error_no_permission' => 'Sizda bu amalni bajarish ruxsati yo‘q',
         'cancel' => 'Bekor qilish',
         'continue' => 'Davom etish',
+        'show' => 'Ko‘rish',
     ],
     'login' => [
         'title' => 'Kirish',
@@ -226,6 +227,19 @@ return [
         'peer_not_found' => "Foydalanuvchi yoki guruh topilmadi.",
         'chat_guest_send_forbidden' => "Guruhga xabar yuborish uchun avval guruhga qo‘shiling.",
         'unknown_error' => "Noma'lum xatolik yuz berdi.",
+        'SCHEDULE_TOO_MUCH' => "Juda ko'p rejalashtirilgan xabarlar mavjud.",
+
+
+
+        '403_title' => '403 — Ruxsat yo‘q',
+        'forbidden' => 'Kirish taqiqlangan',
+        'forbidden_sub' => 'Sizda bu sahifani ko‘rish uchun ruxsat yo‘q.',
+        'back' => 'Orqaga',
+        'home' => 'Bosh sahifa',
+    ],
+    'group' => [
+        'show_title' => 'Operatsiya #:id',
+        'show_subtitle' => 'Xabar matni: :text',
     ],
 
 ];

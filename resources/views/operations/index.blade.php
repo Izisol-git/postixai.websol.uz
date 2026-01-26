@@ -168,15 +168,8 @@
             @php
               $pendingCount = ($total['pending'] ?? 0) + ($total['scheduled'] ?? 0);
             @endphp
-
+            <a href="{{ route('admin.operations.show', $gid) }}" class="btn btn-sm btn-outline-primary">{{__('messages.operations.show')}}</a>            
             @if($group->status !=='canceled')
-              {{-- <form method="POST" action="{{ route('message-groups.refresh', $gid) }}" class="m-0">
-                @csrf
-                <button type="submit" class="btn btn-sm btn-outline-info js-confirm-action" data-text="{{ __('messages.operations.confirm_refresh_text', ['id' => $gid]) }}">
-                  {{ __('messages.operations.btn_refresh') }}
-                </button>
-              </form> --}}
-
               <form method="POST" action="{{ route('message-groups.cancel', $gid) }}" class="m-0">
                 @csrf
                 <button type="submit" class="btn btn-sm btn-outline-danger js-confirm-action" data-text="{{ __('messages.operations.confirm_cancel_text', ['id' => $gid]) }}">

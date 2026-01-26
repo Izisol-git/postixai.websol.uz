@@ -138,12 +138,20 @@
         }
 
         .topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 18px;
-        }
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+
+    position: sticky;    /* sticky qilamiz */
+    top: 0;              /* tepada yopishadi */
+    background: var(--bg); /* fonini saqlaymiz, scrollda aralashmasligi uchun */
+    padding: 12px 20px;  /* biroz ichki padding */
+    z-index: 1000;       /* boshqa elementlar ustida turishi uchun */
+    border-bottom: 1px solid var(--muted-2); /* vizual ajratish uchun */
+}
+ 
 
         /* Cards */
         .card {
@@ -427,7 +435,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     Русский
                                 </a>
                             </li>
-                            <li>
+                            {{-- <li>
                                 <a class="dropdown-item" href="{{ url('/lang/ko') }}">
                                     한국어
                                 </a>
@@ -471,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <a class="dropdown-item" href="{{ url('/lang/hi') }}">
                                     हिंदी
                                 </a>
-                            </li>
+                            </li> --}}
                         </ul>
 
                     </div>

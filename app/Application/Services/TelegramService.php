@@ -387,268 +387,262 @@ class TelegramService
         return $keyboard;
     }
     public function handleGroupSelect(string $groupId, int $chatId)
-{
-    $group = MessageGroup::with('messages')->find($groupId);
+    {
+        $group = MessageGroup::with('messages')->find($groupId);
 
-    if (!$group || $group->messages->isEmpty()) {
-        $this->tg(fn() => $this->telegram->sendMessage([
-            'chat_id' => $chatId,
-            'text' => "⚠️ Guruh yoki xabarlar topilmadi."
-        ]));
-        return;
-    }
-
-    $messages = $group->messages;
-
-    /**
-     * 1️⃣ ASOSIY MA’LUMOTLAR (1-xabar)
-     */
-    $headerText  = "📊 Guruh ma'lumotlari\n\n";
-    $headerText .= "📌 Guruh ID: {$group->id}\n";
-    $headerText .= "🕒 Boshlangan: " . optional($messages->min('send_at'))->format('Y-m-d H:i') . "\n";
-    $headerText .= "⏰ Tugashi: " . optional($messages->max('send_at'))->format('Y-m-d H:i') . "\n\n";
-    $headerText .= "⏰ Last sent at: " . optional(
-        $messages->where('status', 'sent')->max('updated_at')
-    )->format('Y-m-d H:i') . "\n\n";
-
-    $headerText .= "📝 Message:\n";
-    $headerText .= $group->message_text;
-
-
-
-    /**
-     * 🎹 KEYBOARD faqat birinchi xabarda
-     */
-    $replyKeyboard = Keyboard::make()->setResizeKeyboard(true);
-
-    $hasPendingOrScheduled = $messages->contains(
-        fn($msg) => in_array($msg->status, ['scheduled', 'pending'])
-    );
-
-    if ($hasPendingOrScheduled) {
-        $replyKeyboard->row([
-            Keyboard::button("❌ To‘xtatish {$group->id}"),
-            Keyboard::button("🔄 Malumotlarni yangilash {$group->id}")
-        ]);
-    }
-    $hasFailed = $messages->contains(fn($msg) => $msg->status === 'failed');
-
-    if ($hasFailed) {
-    $replyKeyboard->row([
-        Keyboard::button("❌ Failed lar {$group->id}")
-    ]);
-}
-    $replyKeyboard->row([
-        Keyboard::button("📊 Yuborilgan xabarlar tarixi"),
-        Keyboard::button("📂 Cataloglar")
-    ])->row([
-        Keyboard::button("Menyu")
-    ]);
-
-    $this->tg(fn() => $this->telegram->sendMessage([
-        'chat_id' => $chatId,
-        'text' => $headerText,
-        'reply_markup' => $replyKeyboard
-    ]));
-
-    /**
-     * 2️⃣ PEERLAR BO‘YICHA HOLAT
-     * Har 30 ta peer = 1 xabar
-     */
-    $peers = $messages->groupBy('peer')->chunk(30);
-    $page = 1;
-
-    foreach ($peers as $chunk) {
-
-        $text = "👥 Peerlar bo‘yicha holat (qism {$page})\n\n";
-
-        foreach ($chunk as $peer => $peerMessages) {
-            $counts = $peerMessages->groupBy('status')->map->count();
-
-            $statusText = collect([
-                'pending'   => '🕓',
-                'scheduled' => '📅',
-                'sent'      => '✅',
-                'failed'    => '❌',
-                'canceled'  => '🚫',
-            ])
-                ->filter(fn($icon, $status) => ($counts[$status] ?? 0) > 0)
-                ->map(fn($icon, $status) => "{$icon} {$counts[$status]}")
-                ->implode(' | ');
-
-            $text .= "• {$peer} — {$statusText}\n";
-        }
-
-        $this->tg(fn() => $this->telegram->sendMessage([
-            'chat_id' => $chatId,
-            'text' => $text
-        ]));
-
-        $page++;
-    }
-}
-public function showFailedPeers(string $groupId, int $chatId)
-{
-    $group = MessageGroup::with('messages')->find($groupId);
-
-    if (!$group) {
-        return;
-    }
-
-    // local uzbek explanations (to'g'ridan-to'g'ri shu yerda)
-    $uzExpl = [
-        'flood_wait' => "Juda ko‘p so‘rov yuborildi — Telegram sizni vaqtincha chekladi. Birozdan keyin qayta urinib ko‘ring.",
-        'chat_write_forbidden' => "Bu chatga xabar yuborish uchun ruxsat yo‘q.",
-        'user_blocked' => "Foydalanuvchi sizni bloklagan yoki akkaunt o‘chirilgan — yuborish imkoni yo‘q.",
-        'peer_flood' => "Ushbu chat/foydalanuvchiga yuborishda vaqtincha cheklov mavjud (flood).",
-        'phone_migrate' => "Telefon sessiyasi migratsiya qilinmoqda — sozlamalarni tekshiring.",
-        'session_password_needed' => "Sessiya paroli talab qilinadi — seans sozlanishi kerak.",
-        'network_error' => "Tarmoq xatosi yuz berdi — internet aloqasini tekshiring.",
-        'peer_not_found' => "Foydalanuvchi yoki guruh topilmadi — username yoki link noto‘g‘ri bo‘lishi mumkin.",
-        'chat_guest_send_forbidden' => "Guruhga xabar yuborish uchun avval guruhga qo‘shiling yoki administratsiyadan ruxsat oling.",
-        'unknown_error' => "Noma'lum xatolik yuz berdi.",
-    ];
-
-    // Faqat failed statusdagi message larni olib, peerni normalizatsiya qilib guruhlaymiz
-    $groups = $group->messages
-        ->where('status', 'failed')
-        ->map(function ($m) {
-            $m->normalized_peer = $this->normalizePeer((string) $m->peer);
-            return $m;
-        })
-        ->groupBy('normalized_peer');
-
-    if ($groups->isEmpty()) {
-        $this->telegram->sendMessage([
-            'chat_id' => $chatId,
-            'text' => "✅ Failed xabarlar yo‘q"
-        ]);
-        return;
-    }
-
-    $chunks = $groups->chunk(30);
-    $page = 1;
-
-    foreach ($chunks as $chunk) {
-        $text = "👥 Peerlar bo‘yicha holat (qism {$page})\n\n";
-
-        foreach ($chunk as $peer => $msgs) {
-            // jami failed soni
-            $count = $msgs->count();
-
-            // eng ko'p uchragan error_key ni aniqlaymiz
-            $mostKey = $msgs->pluck('error_key')
-                ->filter()
-                ->countBy()
-                ->sortDesc()
-                ->keys()
-                ->first() ?: 'unknown_error';
-
-            // bevosita shu yerda ishlatiladigan o'zbekcha izoh
-            $explanation = $uzExpl[$mostKey] ?? $uzExpl['unknown_error'];
-
-            // chiqarish formati: peer, count va izoh (o'zbekcha)
-            $text .= "• {$peer} — ❌ {$count}\n";
-            $text .= $explanation . "\n\n";
-        }
-
-        $this->telegram->sendMessage([
-            'chat_id' => $chatId,
-            'text' => trim($text)
-        ]);
-
-        $page++;
-    }
-}
-
-/**
- * Simple peer normalizer: t.me links -> @username, tg://resolve -> @username, trim, remove trailing slashes
- */
-private function normalizePeer(string $peer): string
-{
-    $p = trim($peer);
-
-    // t.me link -> @username
-    $p = preg_replace('#^https?://t\.me/#i', '@', $p);
-
-    // tg://resolve?domain=...
-    if (preg_match('#tg://resolve\?domain=([^&/?]+)#i', $p, $m)) {
-        $p = '@' . $m[1];
-    }
-
-    // remove trailing slash
-    $p = rtrim($p, '/');
-
-    return $p;
-}
-
-
-
-    public function createMessageGroup($user, $chatId)
-{
-    $data = json_decode($user->value, true);
-
-    $phone = UserPhone::find($data['phone_id']);
-    if (!$phone) {
-        $this->tg(fn() =>
-            $this->telegram->sendMessage([
+        if (!$group || $group->messages->isEmpty()) {
+            $this->tg(fn() => $this->telegram->sendMessage([
                 'chat_id' => $chatId,
-                'text' => "Telefon topilmadi."
-            ])
+                'text' => "⚠️ Guruh yoki xabarlar topilmadi."
+            ]));
+            return;
+        }
+
+        $messages = $group->messages;
+
+        /**
+         * 1️⃣ ASOSIY MA’LUMOTLAR (1-xabar)
+         */
+        $headerText  = "📊 Guruh ma'lumotlari\n\n";
+        $headerText .= "📌 Guruh ID: {$group->id}\n";
+        $headerText .= "🕒 Boshlangan: " . optional($messages->min('send_at'))->format('Y-m-d H:i') . "\n";
+        $headerText .= "⏰ Tugashi: " . optional($messages->max('send_at'))->format('Y-m-d H:i') . "\n\n";
+        $headerText .= "⏰ Last sent at: " . optional(
+            $messages->where('status', 'sent')->max('updated_at')
+        )->format('Y-m-d H:i') . "\n\n";
+
+        $headerText .= "📝 Message:\n";
+        $headerText .= $group->message_text;
+
+
+
+        /**
+         * 🎹 KEYBOARD faqat birinchi xabarda
+         */
+        $replyKeyboard = Keyboard::make()->setResizeKeyboard(true);
+
+        $hasPendingOrScheduled = $messages->contains(
+            fn($msg) => in_array($msg->status, ['scheduled', 'pending'])
         );
-        return 'ok';
-    }
 
-    $group = MessageGroup::create([
-        'user_phone_id' => $phone->id,
-        'status' => 'pending',
-        'message_text' => $data['message_text'],
-    ]);
-
-    $catalog = Catalog::find($data['catalog_id']);
-    $peers = json_decode($catalog->peers, true);
-
-    $loopCount = (int) $data['loop_count'];
-    $interval  = (int) $data['interval']; // minutes (siz oldin addMinutes ishlatgansiz)
-    $message   = $data['message_text'];
-
-    // Baza: hamma send_at lar kamida shu vaqtga teng bo'ladi (Telegram scheduling-ga xavfsiz)
-    $base = now()->addSeconds(65);
-
-    foreach ($peers as $peer) {
-        for ($i = 0; $i < $loopCount; $i++) {
-            $sendAt = $base->copy()->addMinutes($i * max(0, $interval));
-
-            TelegramMessage::create([
-                'message_group_id' => $group->id,
-                'peer' => $peer,
-                // 'message_text' => $message,
-                'send_at' => $sendAt,
-                'status' => 'pending',
+        if ($hasPendingOrScheduled) {
+            $replyKeyboard->row([
+                Keyboard::button("❌ To‘xtatish {$group->id}"),
+                Keyboard::button("🔄 Malumotlarni yangilash {$group->id}")
             ]);
         }
-        // agar peers orasida qo'shimcha spacing kerak bo'lsa, base-ni ham oshirish mumkin:
-        // $base->addSeconds( (int) env('TELEGRAM_PEER_EXTRA_GAP', 0) );
-    }
+        $hasFailed = $messages->contains(fn($msg) => $msg->status === 'failed');
 
-    SendTelegramMessages::dispatch($group->id)->onQueue('telegram');
+        if ($hasFailed) {
+            $replyKeyboard->row([
+                Keyboard::button("❌ Failed lar {$group->id}")
+            ]);
+        }
+        $replyKeyboard->row([
+            Keyboard::button("📊 Yuborilgan xabarlar tarixi"),
+            Keyboard::button("📂 Cataloglar")
+        ])->row([
+            Keyboard::button("Menyu")
+        ]);
 
-    $this->tg(fn() =>
-        $this->telegram->sendMessage([
+        $this->tg(fn() => $this->telegram->sendMessage([
             'chat_id' => $chatId,
-            'text' => "✅ Xabarlar jadvali yaratildi va navbatga qo‘yildi. \n/history - orqali ularni korishingiz mumkin ",
-            'reply_markup' => $this->mainMenuWithHistoryKeyboard()
-        ])
-    );
+            'text' => $headerText,
+            'reply_markup' => $replyKeyboard
+        ]));
 
-    $user->state = null;
-    $user->value = null;
-    $user->save();
+        /**
+         * 2️⃣ PEERLAR BO‘YICHA HOLAT
+         * Har 30 ta peer = 1 xabar
+         */
+        $peers = $messages->groupBy('peer')->chunk(30);
+        $page = 1;
 
-    return 'ok';
-}
+        foreach ($peers as $chunk) {
 
+            $text = "👥 Peerlar bo‘yicha holat (qism {$page})\n\n";
 
+            foreach ($chunk as $peer => $peerMessages) {
+                $counts = $peerMessages->groupBy('status')->map->count();
+
+                $statusText = collect([
+                    'pending'   => '🕓',
+                    'scheduled' => '📅',
+                    'sent'      => '✅',
+                    'failed'    => '❌',
+                    'canceled'  => '🚫',
+                ])
+                    ->filter(fn($icon, $status) => ($counts[$status] ?? 0) > 0)
+                    ->map(fn($icon, $status) => "{$icon} {$counts[$status]}")
+                    ->implode(' | ');
+
+                $text .= "• {$peer} — {$statusText}\n";
+            }
+
+            $this->tg(fn() => $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => $text
+            ]));
+
+            $page++;
+        }
+    }
+    public function showFailedPeers(string $groupId, int $chatId)
+    {
+        $group = MessageGroup::with('messages')->find($groupId);
+
+        if (!$group) {
+            return;
+        }
+
+        // local uzbek explanations (to'g'ridan-to'g'ri shu yerda)
+        $uzExpl = [
+            'flood_wait' => "Juda ko‘p so‘rov yuborildi — Telegram sizni vaqtincha chekladi. Birozdan keyin qayta urinib ko‘ring.",
+            'chat_write_forbidden' => "Bu chatga xabar yuborish uchun ruxsat yo‘q.",
+            'user_blocked' => "Foydalanuvchi sizni bloklagan yoki akkaunt o‘chirilgan — yuborish imkoni yo‘q.",
+            'peer_flood' => "Ushbu chat/foydalanuvchiga yuborishda vaqtincha cheklov mavjud (flood).",
+            'phone_migrate' => "Telefon sessiyasi migratsiya qilinmoqda — sozlamalarni tekshiring.",
+            'session_password_needed' => "Sessiya paroli talab qilinadi — seans sozlanishi kerak.",
+            'network_error' => "Tarmoq xatosi yuz berdi — internet aloqasini tekshiring.",
+            'peer_not_found' => "Foydalanuvchi yoki guruh topilmadi — username yoki link noto‘g‘ri bo‘lishi mumkin.",
+            'chat_guest_send_forbidden' => "Guruhga xabar yuborish uchun avval guruhga qo‘shiling yoki administratsiyadan ruxsat oling.",
+            'SCHEDULE_TOO_MUCH' => "Juda ko'p rejalashtirilgan xabarlar mavjud — iltimos, biroz kuting yoki rejalashtirilgan xabarlarni kamaytiring.",
+            'unknown_error' => "Noma'lum xatolik yuz berdi.",
+        ];
+
+        // Faqat failed statusdagi message larni olib, peerni normalizatsiya qilib guruhlaymiz
+        $groups = $group->messages
+            ->where('status', 'failed')
+            ->map(function ($m) {
+                $m->normalized_peer = $this->normalizePeer((string) $m->peer);
+                return $m;
+            })
+            ->groupBy('normalized_peer');
+
+        if ($groups->isEmpty()) {
+            $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => "✅ Failed xabarlar yo‘q"
+            ]);
+            return;
+        }
+
+        $chunks = $groups->chunk(30);
+        $page = 1;
+
+        foreach ($chunks as $chunk) {
+            $text = "👥 Peerlar bo‘yicha holat (qism {$page})\n\n";
+
+            foreach ($chunk as $peer => $msgs) {
+                // jami failed soni
+                $count = $msgs->count();
+
+                // eng ko'p uchragan error_key ni aniqlaymiz
+                $mostKey = $msgs->pluck('error_key')
+                    ->filter()
+                    ->countBy()
+                    ->sortDesc()
+                    ->keys()
+                    ->first() ?: 'unknown_error';
+
+                // bevosita shu yerda ishlatiladigan o'zbekcha izoh
+                $explanation = $uzExpl[$mostKey] ?? $uzExpl['unknown_error'];
+
+                // chiqarish formati: peer, count va izoh (o'zbekcha)
+                $text .= "• {$peer} — ❌ {$count}\n";
+                $text .= $explanation . "\n\n";
+            }
+
+            $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => trim($text)
+            ]);
+
+            $page++;
+        }
+    }
+    /**
+     * Simple peer normalizer: t.me links -> @username, tg://resolve -> @username, trim, remove trailing slashes
+     */
+    private function normalizePeer(string $peer): string
+    {
+        $p = trim($peer);
+
+        // t.me link -> @username
+        $p = preg_replace('#^https?://t\.me/#i', '@', $p);
+
+        // tg://resolve?domain=...
+        if (preg_match('#tg://resolve\?domain=([^&/?]+)#i', $p, $m)) {
+            $p = '@' . $m[1];
+        }
+
+        // remove trailing slash
+        $p = rtrim($p, '/');
+
+        return $p;
+    }
+    public function createMessageGroup($user, $chatId)
+    {
+        $data = json_decode($user->value, true);
+
+        $phone = UserPhone::find($data['phone_id']);
+        if (!$phone) {
+            $this->tg(
+                fn() =>
+                $this->telegram->sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => "Telefon topilmadi."
+                ])
+            );
+            return 'ok';
+        }
+
+        $group = MessageGroup::create([
+            'user_phone_id' => $phone->id,
+            'status' => 'pending',
+            'message_text' => $data['message_text'],
+        ]);
+
+        $catalog = Catalog::find($data['catalog_id']);
+        $peers = json_decode($catalog->peers, true);
+
+        $loopCount = (int) $data['loop_count'];
+        $interval  = (int) $data['interval']; // minutes (siz oldin addMinutes ishlatgansiz)
+        $message   = $data['message_text'];
+
+        $base = now();
+
+        foreach ($peers as $peer) {
+            for ($i = 0; $i < $loopCount; $i++) {
+                $sendAt = $base->copy()->addMinutes($i * max(0, $interval));
+
+                TelegramMessage::create([
+                    'message_group_id' => $group->id,
+                    'peer' => $peer,
+                    // 'message_text' => $message,
+                    'send_at' => $sendAt,
+                    'status' => 'pending',
+                ]);
+            }
+        }
+
+        SendTelegramMessages::dispatch($group->id)->onQueue('telegram');
+
+        $this->tg(
+            fn() =>
+            $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => "✅ Xabarlar jadvali yaratildi va navbatga qo‘yildi. \n/history - orqali ularni korishingiz mumkin ",
+                'reply_markup' => $this->mainMenuWithHistoryKeyboard()
+            ])
+        );
+
+        $user->state = null;
+        $user->value = null;
+        $user->save();
+
+        return 'ok';
+    }
     public  function cancelInlineKeyboard()
     {
         return (new Keyboard)->inline()

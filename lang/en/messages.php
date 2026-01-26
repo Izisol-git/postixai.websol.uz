@@ -93,6 +93,7 @@ return [
     'error_no_permission' => 'You do not have permission to perform this action',
     'cancel' => 'Cancel',
     'continue' => 'Continue',
+    'show' => 'Show',
   ],
   'login' => [
     'title' => 'Login',
@@ -229,7 +230,21 @@ return [
     'peer_not_found' => "User or group not found.",
     'chat_guest_send_forbidden' => "Guests are not allowed to send messages in this group.",
     'unknown_error' => "An unknown error occurred.",
+    'SCHEDULE_TOO_MUCH' => "Too many scheduled messages.",
 
+
+
+    '403_title' => '403 — Forbidden',
+    'forbidden' => 'Access denied',
+    'forbidden_sub' => 'You do not have permission to access this page.',
+    'back' => 'Back',
+    'home' => 'Home',
+        
   ],
+  'group' => [
+    'show_title' => 'Operation #:id',
+    'show_subtitle' => 'Message text: :text',
+    ],
+
 
 ];

@@ -71,7 +71,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/telegram/login', [AdminUserController::class, 'storeUserWithTelegram'])->name('admin.telegram.login');
             Route::post('/telegram/user-logout', [AdminUserController::class, 'logoutUserFromTelegram'])->name('admin.telegram.user-logout');
             Route::get('/new-telegram-users', [AdminUserController::class, 'newTelegramUsers'])->name('admin.telegram.new-users');
-            
+            Route::get('/operations/{operation}', [MainController::class, 'showOperation'])->name('admin.operations.show');
         });
 
     });

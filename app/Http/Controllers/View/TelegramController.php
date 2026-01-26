@@ -96,8 +96,13 @@ class TelegramController extends Controller
     }
     public function cancel(MessageGroup $group): RedirectResponse
     {
-
+        if (!in_array($group->status, ['scheduled', 'pending'])) {
+            return redirect()
+                ->back()
+                ->with('error', "Operatsiya #{$group->id} ni bekor qilib bo'lmaydi. Faqat 'scheduled' yoki 'pending' holatidagi operatsiyalarni bekor qilish mumkin.");
+        }
         $group->update(['status' => 'canceled']);
+
         CleanupScheduledJob::dispatch($group->id)
             ->onQueue('telegram');
 

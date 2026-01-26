@@ -80,11 +80,9 @@ class SendTelegramMessage extends Command
                     }
                 }
 
-                // peerlar orasidagi minimal spacing
                 sleep($this->perMessageSpacingSeconds);
 
-                // schedule_date uchun minimal talab (kamida hozir +60s)
-                $minScheduleTs = now()->addSeconds(60)->timestamp;
+                $minScheduleTs = now()->addSeconds(1)->timestamp;
                 $schedule_date = $message->send_at && $message->send_at->timestamp > $minScheduleTs
                     ? $message->send_at->timestamp
                     : $minScheduleTs;
@@ -97,7 +95,6 @@ class SendTelegramMessage extends Command
                 ];
 
                 $response = $Madeline->messages->sendMessage($payload);
-
                 $telegramMessageId = null;
                 $status = 'sent';
 
@@ -192,7 +189,6 @@ class SendTelegramMessage extends Command
     {
         $e = strtolower($err);
 
-        // Aniq regex / patternlar
         if (preg_match('/flood[_ ]?wait/i', $e)) {
             return 'flood_wait';
         }
@@ -213,6 +209,15 @@ class SendTelegramMessage extends Command
         }
         if (preg_match('/timeout|timed out|connection.*reset|broken pipe|could not connect/i', $e)) {
             return 'network_error';
+        }
+        if (strpos($e, 'peer is not present in the internal peer database') !== false) {
+            return 'peer_not_found';
+        }
+        if (strpos($e, 'chat_guest_send_forbidden') !== false) {
+        return 'chat_guest_send_forbidden';
+        }
+        if (strpos($e, 'schedule_too_much') !== false || strpos($e, 'SCHEDULE_TOO_MUCH') !== false) {
+            return 'SCHEDULE_TOO_MUCH';
         }
 
         // Default

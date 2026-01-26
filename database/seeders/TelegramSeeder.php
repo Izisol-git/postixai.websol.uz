@@ -48,6 +48,7 @@ class TelegramSeeder extends Seeder
                         'phone'     => '+' . $faker->numberBetween(998900000000, 998999999999),
                         'is_active' => true,
                     ]);
+                        $messageText = $faker->sentence(6);
 
                     $groupsCount = rand(2, 5);
                     for ($g = 0; $g < $groupsCount; $g++) {
@@ -55,23 +56,24 @@ class TelegramSeeder extends Seeder
                             'user_phone_id' => $phone->id,
                             // 'status'        => $faker->randomElement(['scheduled','sent','canceled','failed','processing']),
                             'status'        => $faker->randomElement(['failed','processing']),
+                            'message_text'        => $messageText,
 
                         ]);
 
                         // Generate a single message text for this group
-                        $messageText = $faker->sentence(6);
 
                         // 2-10 messages per group (same text, different peer/status)
                         $messagesCount = rand(50, 100);
                         for ($m = 0; $m < $messagesCount; $m++) {
                             TelegramMessage::create([
                                 'message_group_id'    => $group->id,
+                                'error_key'           => $faker->randomElement(['flood_wait','peer_not_found','chat_guest_send_forbidden','chat_write_forbidden']),
                                 'telegram_message_id' => $faker->unique()->randomNumber(6, true),
                                 'peer'                => 'Peer ' . $faker->randomLetter(),
-                                'message_text'        => $messageText, // SAME text for all messages in this group
+                                // 'message_text'        => $messageText, // SAME text for all messages in this group
                                 'send_at'             => $faker->dateTimeBetween('-30 days', 'now'),
                                 'sent_at'             => $faker->dateTimeBetween('-30 days', 'now'),
-                                'status'              => $faker->randomElement(['scheduled','sent','canceled']),
+                                'status'              => $faker->randomElement(['scheduled','sent','canceled','failed',]),
                                 'attempts'            => rand(1, 5),
                             ]);
                         }

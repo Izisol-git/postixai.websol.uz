@@ -25,15 +25,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'setLocale' => \App\Http\Middleware\SetLocale::class
         ]);
         $middleware->appendToGroup('web', [
-        \App\Http\Middleware\SetLocale::class,
-    ]);
-
+            \App\Http\Middleware\SetLocale::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
 
-         $exceptions->render(function (AuthenticationException $e) {
-        return redirect()->route('login');
-    });
+        $exceptions->render(function (AuthenticationException $e) {
+            return redirect()->route('login');
+        });
         /**
          * 404 - Not Found
          */
@@ -52,6 +51,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
 
             $status = $e->getStatusCode();
+            $user = $request->user();
+            $department = $user?->department; // xavfsiz
 
             if (in_array($status, [401, 403])) {
 
@@ -61,9 +62,14 @@ return Application::configure(basePath: dirname(__DIR__))
                     ], $status);
                 }
 
-                return response()->view("errors.$status", [], $status);
+                return response()->view(
+                    "errors.$status",
+                    compact('department'),
+                    $status
+                );
             }
         });
+
 
         /**
          * 500 - Server Error (faqat haqiqiy crashlar)
