@@ -25,7 +25,7 @@ class SendTelegramMessage extends Command
         parent::__construct();
         $this->madelineService = $madelineService;
         $this->perMessageSpacingSeconds = 1;
-        $this->maxAttempts = 3;
+        $this->maxAttempts = 1;
     }
 
     public function handle()
@@ -91,7 +91,7 @@ class SendTelegramMessage extends Command
 
                 $payload = [
                     'peer' => $message->peer,
-                    'message' => $message->message_text,
+                    'message' => $group->message_text,
                     'parse_mode' => 'HTML',
                     'schedule_date' => $schedule_date,
                 ];
@@ -127,13 +127,13 @@ class SendTelegramMessage extends Command
                 ]);
 
                 $this->info("✅ Xabar yuborildi: {$message->peer} (id={$message->id}, status={$status})");
-
             } catch (\Throwable $e) {
                 $err = $e->getMessage();
                 Log::error("❌ Xabar yuborilmadi: peer={$message->peer}, id={$message->id}", ['error' => $err]);
 
                 // Attempts oshirish
                 $message->increment('attempts');
+                $message->refresh();
 
                 // FLOOD_WAIT ni aniqlash
                 $waitSeconds = null;
@@ -141,11 +141,17 @@ class SendTelegramMessage extends Command
                     $waitSeconds = (int) $m[1];
                 }
 
+                // error_key aniqlash (agar flood wait bo'lsa ustuvor)
+                $errorKey = $waitSeconds ? 'flood_wait' : $this->mapErrorToKey($err);
+
                 if ($waitSeconds) {
                     $buffer = 5;
                     $newSendAt = now()->addSeconds($waitSeconds + $buffer);
-                    $message->update(['send_at' => $newSendAt]);
-                    Log::warning("FLOOD_WAIT for peer={$message->peer}, delaying message id={$message->id} to {$newSendAt}");
+                    $message->update([
+                        'send_at' => $newSendAt,
+                        'error_key' => $errorKey,
+                    ]);
+                    Log::warning("FLOOD_WAIT for peer={$message->peer}, delaying message id={$message->id} to {$newSendAt}, error_key={$errorKey}");
                     // davom etamiz (message hali pending), keyingi iteratsiyada bu xabar yana olinadi
                     continue;
                 }
@@ -153,18 +159,20 @@ class SendTelegramMessage extends Command
                 // boshqa xatolar: agar attempts < limit — kutib keyinroq urinib ko'rish
                 if ($message->attempts < $this->maxAttempts) {
                     $retryDelay = 10;
-                    Log::info("Retrying message id={$message->id} after {$retryDelay}s (attempt={$message->attempts})");
+                    // saqlab qo'yamiz error_key va attempts (DBda mavjud)
+                    $message->update(['error_key' => $errorKey]);
+                    Log::info("Retrying message id={$message->id} after {$retryDelay}s (attempt={$message->attempts}, error_key={$errorKey})");
                     sleep($retryDelay);
-                    // qatorda yana bu message qayta sinalishi uchun DB ni o'zgartirmaymiz; lekin shu process ichida biz uni qayta tekshirish uchun
-                    // qayta loop qilish uchun message ni qayta olishni xohlaysizmi — hozir davom etamiz.
-                    // Bu yerni `continue` bilan ham ishlatish mumkin, ammo biz boshqa pending xabarlarga o'tamiz.
                     continue;
                 }
 
-                // attempts haddan oshsa failed qilamiz
+                // attempts haddan oshsa failed qilamiz va error_key saqlaymiz
                 if ($message->attempts >= $this->maxAttempts) {
-                    $message->update(['status' => 'failed']);
-                    Log::error("Message permanently failed id={$message->id}, peer={$message->peer}");
+                    $message->update([
+                        'status' => 'failed',
+                        'error_key' => $errorKey,
+                    ]);
+                    Log::error("Message permanently failed id={$message->id}, peer={$message->peer}, error_key={$errorKey}");
                 }
             }
         } // foreach messages
@@ -173,5 +181,41 @@ class SendTelegramMessage extends Command
         $this->info("🎉 Group yakunlandi: id={$groupId}");
 
         return self::SUCCESS;
+    }
+     /**
+     * Map raw exception message to a short error key to store in telegram_messages.error_key
+     *
+     * @param string $err
+     * @return string
+     */
+    private function mapErrorToKey(string $err): string
+    {
+        $e = strtolower($err);
+
+        // Aniq regex / patternlar
+        if (preg_match('/flood[_ ]?wait/i', $e)) {
+            return 'flood_wait';
+        }
+        if (strpos($e, 'chat write forbidden') !== false || strpos($e, 'chat_write_forbidden') !== false || strpos($e, 'chat admin required') !== false) {
+            return 'chat_write_forbidden';
+        }
+        if (strpos($e, 'user is blocked') !== false || strpos($e, 'user is deactivated') !== false || strpos($e, 'bot was blocked') !== false) {
+            return 'user_blocked';
+        }
+        if (strpos($e, 'peer_flood') !== false || strpos($e, 'peer flood') !== false) {
+            return 'peer_flood';
+        }
+        if (strpos($e, 'phone migrate') !== false) {
+            return 'phone_migrate';
+        }
+        if (strpos($e, 'session password needed') !== false || strpos($e, 'session.password_needed') !== false) {
+            return 'session_password_needed';
+        }
+        if (preg_match('/timeout|timed out|connection.*reset|broken pipe|could not connect/i', $e)) {
+            return 'network_error';
+        }
+
+        // Default
+        return 'unknown_error';
     }
 }

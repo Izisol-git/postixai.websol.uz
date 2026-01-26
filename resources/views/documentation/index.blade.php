@@ -259,8 +259,6 @@ Q: Telegram IDni qanday topish mumkin?
 A: Telegramda @username_to_id_bot yoki shunga o‘xshash botlardan foydalanish orqali IDni aniqlash mumkin. (Admin yordamida ham ID olinishi mumkin.)
 Q: Kod yetib kelmasa nima qilish kerak?
 A: Telefon signalini va Telegram sessiyasini tekshiring. Agar kod kelmasa, Adminga murojaat qiling.
-Q: Catalogga qanday chat qo‘shaman?
-A: Admin paneldagi Catalog bo‘limidan "Add chat" funksiyasini tanlang va chat manzilini yoki IDni kiriting.
 Q: Foydalanuvchi bloklanganini qanday tiklash mumkin?
 A: Admin yoki Client mas’uli orqali foydalanuvchini tanlab "Unblock" funksiyasini ishlating.
 ________________________________________</pre>

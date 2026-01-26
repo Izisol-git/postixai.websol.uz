@@ -14,7 +14,8 @@ class TelegramMessage extends Model
         'send_at',
         'sent_at',
         'status',
-        'attempts'
+        'attempts',
+        'error_key'
     ];
 
     protected $casts = [

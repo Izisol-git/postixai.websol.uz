@@ -95,8 +95,8 @@ return [
         'cancel_success' => 'Operatsiya #:id bekor qilindi. :count ta xabar holati o‘zgardi',
         'cancel_failed' => 'Operatsiya #:id ni bekor qilishda xatolik',
         'error_no_permission' => 'Sizda bu amalni bajarish ruxsati yo‘q',
-        'cancel'=>'Bekor qilish',   
-        'continue'=>'Davom etish',
+        'cancel' => 'Bekor qilish',
+        'continue' => 'Davom etish',
     ],
     'login' => [
         'title' => 'Kirish',
@@ -164,7 +164,7 @@ return [
         'verify_failed' => 'Tasdiqlash muvaffaqiyatsiz',
         'operations_count' => 'Operatsiyalar soni',
         'messages_count' => 'Xabarlar soni',
-        'search'=> 'Qidirish',
+        'search' => 'Qidirish',
     ],
 
 
@@ -213,6 +213,19 @@ return [
     ],
     'find' => [
         'filter_all_users' => '— Barcha foydalanuvchilar —',
-    ]
+    ],
+    ///////////
+    'errors' => [
+        'flood_wait' => "Juda ko‘p so‘rov yuborildi. Iltimos, birozdan so‘ng qayta urinib ko‘ring.",
+        'chat_write_forbidden' => "Bu chatga yozish uchun ruxsat yo‘q.",
+        'user_blocked' => "Foydalanuvchi sizni bloklagan yoki akkaunt o‘chirilgan.",
+        'peer_flood' => "Bu chat/foydalanuvchiga yuborishda vaqtincha cheklov mavjud (flood).",
+        'phone_migrate' => "Telefon ma'lumotlari migratsiya qilinmoqda. Iltimos, sozlamalarni tekshiring.",
+        'session_password_needed' => "Sessiya uchun parol talab qilinadi.",
+        'network_error' => "Tarmoq xatosi. Iltimos, internet aloqangizni tekshiring.",
+        'peer_not_found' => "Foydalanuvchi yoki guruh topilmadi.",
+        'chat_guest_send_forbidden' => "Guruhga xabar yuborish uchun avval guruhga qo‘shiling.",
+        'unknown_error' => "Noma'lum xatolik yuz berdi.",
+    ],
 
 ];

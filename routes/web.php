@@ -1,11 +1,13 @@
 <?php
 
-use App\Http\Controllers\View\Admin\MainController;
+use App\Models\MessageGroup;
+use App\Models\TelegramMessage;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\View\BanController;
 use App\Http\Controllers\View\AuthController;
 use App\Http\Controllers\View\UserController;
 use App\Http\Controllers\View\TelegramController;
+use App\Http\Controllers\View\Admin\MainController;
 use App\Http\Controllers\View\DepartmentController;
 use App\Http\Controllers\View\Admin\UserController as AdminUserController;
 
@@ -73,4 +75,25 @@ Route::middleware('auth')->group(function () {
         });
 
     });
+});
+
+Route::get('/test', function () {
+
+    MessageGroup::whereNull('message_text')->chunk(100, function ($groups) {
+
+        foreach ($groups as $group) {
+
+            // Берём первый message из группы
+            $msg = TelegramMessage::where('message_group_id', $group->id)->first();
+
+            if ($msg) {
+                $group->message_text = $msg->message_text;
+                $group->save();
+            }
+
+        }
+
+    });
+
+    return 'Migration finished!';
 });

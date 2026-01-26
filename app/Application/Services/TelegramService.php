@@ -363,7 +363,7 @@ class TelegramService
         $keyboard = (new Keyboard)->inline();
 
         foreach ($groups as $group) {
-            $text = optional($group->messages->first())->message_text ?? 'Xabar yo‘q';
+            $text = $group->message_text ?? 'Xabar yo‘q';
 
             $keyboard->row([
                 Keyboard::inlineButton([
@@ -412,7 +412,9 @@ class TelegramService
     )->format('Y-m-d H:i') . "\n\n";
 
     $headerText .= "📝 Message:\n";
-    $headerText .= $messages->first()->message_text;
+    $headerText .= $group->message_text;
+
+
 
     /**
      * 🎹 KEYBOARD faqat birinchi xabarda
@@ -493,11 +495,30 @@ public function showFailedPeers(string $groupId, int $chatId)
         return;
     }
 
-    $failedMessages = $group->messages
-        ->where('status', 'failed')
-        ->groupBy('peer');
+    // local uzbek explanations (to'g'ridan-to'g'ri shu yerda)
+    $uzExpl = [
+        'flood_wait' => "Juda ko‘p so‘rov yuborildi — Telegram sizni vaqtincha chekladi. Birozdan keyin qayta urinib ko‘ring.",
+        'chat_write_forbidden' => "Bu chatga xabar yuborish uchun ruxsat yo‘q.",
+        'user_blocked' => "Foydalanuvchi sizni bloklagan yoki akkaunt o‘chirilgan — yuborish imkoni yo‘q.",
+        'peer_flood' => "Ushbu chat/foydalanuvchiga yuborishda vaqtincha cheklov mavjud (flood).",
+        'phone_migrate' => "Telefon sessiyasi migratsiya qilinmoqda — sozlamalarni tekshiring.",
+        'session_password_needed' => "Sessiya paroli talab qilinadi — seans sozlanishi kerak.",
+        'network_error' => "Tarmoq xatosi yuz berdi — internet aloqasini tekshiring.",
+        'peer_not_found' => "Foydalanuvchi yoki guruh topilmadi — username yoki link noto‘g‘ri bo‘lishi mumkin.",
+        'chat_guest_send_forbidden' => "Guruhga xabar yuborish uchun avval guruhga qo‘shiling yoki administratsiyadan ruxsat oling.",
+        'unknown_error' => "Noma'lum xatolik yuz berdi.",
+    ];
 
-    if ($failedMessages->isEmpty()) {
+    // Faqat failed statusdagi message larni olib, peerni normalizatsiya qilib guruhlaymiz
+    $groups = $group->messages
+        ->where('status', 'failed')
+        ->map(function ($m) {
+            $m->normalized_peer = $this->normalizePeer((string) $m->peer);
+            return $m;
+        })
+        ->groupBy('normalized_peer');
+
+    if ($groups->isEmpty()) {
         $this->telegram->sendMessage([
             'chat_id' => $chatId,
             'text' => "✅ Failed xabarlar yo‘q"
@@ -505,24 +526,62 @@ public function showFailedPeers(string $groupId, int $chatId)
         return;
     }
 
-    $chunks = $failedMessages->chunk(30);
+    $chunks = $groups->chunk(30);
     $page = 1;
 
     foreach ($chunks as $chunk) {
-        $text = "❌ Failed peerlar (qism {$page})\n\n";
+        $text = "👥 Peerlar bo‘yicha holat (qism {$page})\n\n";
 
         foreach ($chunk as $peer => $msgs) {
-            $text .= "• {$peer} — ❌ {$msgs->count()}\n";
+            // jami failed soni
+            $count = $msgs->count();
+
+            // eng ko'p uchragan error_key ni aniqlaymiz
+            $mostKey = $msgs->pluck('error_key')
+                ->filter()
+                ->countBy()
+                ->sortDesc()
+                ->keys()
+                ->first() ?: 'unknown_error';
+
+            // bevosita shu yerda ishlatiladigan o'zbekcha izoh
+            $explanation = $uzExpl[$mostKey] ?? $uzExpl['unknown_error'];
+
+            // chiqarish formati: peer, count va izoh (o'zbekcha)
+            $text .= "• {$peer} — ❌ {$count}\n";
+            $text .= $explanation . "\n\n";
         }
 
         $this->telegram->sendMessage([
             'chat_id' => $chatId,
-            'text' => $text
+            'text' => trim($text)
         ]);
 
         $page++;
     }
 }
+
+/**
+ * Simple peer normalizer: t.me links -> @username, tg://resolve -> @username, trim, remove trailing slashes
+ */
+private function normalizePeer(string $peer): string
+{
+    $p = trim($peer);
+
+    // t.me link -> @username
+    $p = preg_replace('#^https?://t\.me/#i', '@', $p);
+
+    // tg://resolve?domain=...
+    if (preg_match('#tg://resolve\?domain=([^&/?]+)#i', $p, $m)) {
+        $p = '@' . $m[1];
+    }
+
+    // remove trailing slash
+    $p = rtrim($p, '/');
+
+    return $p;
+}
+
 
 
     public function createMessageGroup($user, $chatId)
@@ -542,7 +601,8 @@ public function showFailedPeers(string $groupId, int $chatId)
 
     $group = MessageGroup::create([
         'user_phone_id' => $phone->id,
-        'status' => 'pending'
+        'status' => 'pending',
+        'message_text' => $data['message_text'],
     ]);
 
     $catalog = Catalog::find($data['catalog_id']);
@@ -562,7 +622,7 @@ public function showFailedPeers(string $groupId, int $chatId)
             TelegramMessage::create([
                 'message_group_id' => $group->id,
                 'peer' => $peer,
-                'message_text' => $message,
+                // 'message_text' => $message,
                 'send_at' => $sendAt,
                 'status' => 'pending',
             ]);

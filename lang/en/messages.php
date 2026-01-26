@@ -91,8 +91,8 @@ return [
     'cancel_success' => 'Operation #:id canceled. :count messages updated',
     'cancel_failed' => 'Failed to cancel operation #:id',
     'error_no_permission' => 'You do not have permission to perform this action',
-    'cancel'=>'Cancel',
-    'continue'=>'Continue',
+    'cancel' => 'Cancel',
+    'continue' => 'Continue',
   ],
   'login' => [
     'title' => 'Login',
@@ -175,21 +175,21 @@ return [
     'verify_failed' => 'Verification failed',
     'operations_count' => 'Operations count',
     'messages_count' => 'Messages count',
-    'search'=> 'Search',
+    'search' => 'Search',
   ],
   'ban' => [
-        'invalid_type' => 'Invalid ban type.',
-        'not_found' => ':model not found.',
-        'admin_department_forbidden' => 'Admin cannot ban a department.',
-        'admin_to_admin_forbidden' => 'Admin cannot ban another admin.',
-        'no_permission' => 'You do not have permission to perform this action.',
-        'invalid_date' => 'Invalid date format.',
-        'unbanned' => 'Ban removed for :model.',
-        'banned_now' => ':model has been banned immediately.',
-        'scheduled' => 'Ban for :model has been scheduled.',
-        'internal_error' => 'An internal server error occurred.',
-    ],
-    'telegram' => [
+    'invalid_type' => 'Invalid ban type.',
+    'not_found' => ':model not found.',
+    'admin_department_forbidden' => 'Admin cannot ban a department.',
+    'admin_to_admin_forbidden' => 'Admin cannot ban another admin.',
+    'no_permission' => 'You do not have permission to perform this action.',
+    'invalid_date' => 'Invalid date format.',
+    'unbanned' => 'Ban removed for :model.',
+    'banned_now' => ':model has been banned immediately.',
+    'scheduled' => 'Ban for :model has been scheduled.',
+    'internal_error' => 'An internal server error occurred.',
+  ],
+  'telegram' => [
 
     'login' => 'Connect Telegram',
     'phone_label' => 'Phone number',
@@ -214,10 +214,22 @@ return [
     'user_exists' => 'A user with this phone number already exists in the system.',
     'already_in_progress' => 'The Telegram login process for a user with this phone number is already in progress.',
     'started' => 'The process of connecting to Telegram has started. Please wait.',
-],
-'find'=>[
-        'filter_all_users'=>'All users',
   ],
+  'find' => [
+    'filter_all_users' => 'All users',
+  ],
+  'errors' => [
+    'flood_wait' => "Too many requests. Please try again later.",
+    'chat_write_forbidden' => "You don't have permission to send messages in this chat.",
+    'user_blocked' => "The user has blocked you or the account is deactivated.",
+    'peer_flood' => "Sending to this chat/user is temporarily restricted (flood).",
+    'phone_migrate' => "Phone data migration required. Please check settings.",
+    'session_password_needed' => "A session password is required.",
+    'network_error' => "Network error. Please check your internet connection.",
+    'peer_not_found' => "User or group not found.",
+    'chat_guest_send_forbidden' => "Guests are not allowed to send messages in this group.",
+    'unknown_error' => "An unknown error occurred.",
 
+  ],
 
 ];

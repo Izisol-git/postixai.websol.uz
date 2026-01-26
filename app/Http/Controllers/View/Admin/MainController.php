@@ -265,7 +265,6 @@ class MainController extends Controller
     }
     public function operations(Request $request, Department $department)
 {
-    // dd($request->all());
     $user = $request->user();
 
     // auto-activate scheduled ban as in show()
@@ -298,16 +297,11 @@ class MainController extends Controller
     };
 
     // Base query: message_groups for department phones (va optional user filter)
-    $base = \App\Models\MessageGroup::whereIn('user_phone_id', $phoneSub);
+    $base = MessageGroup::whereIn('user_phone_id', $phoneSub);
 
-    // Apply search: groups that have telegram_messages whose text matches
+    // Apply search: now check message_groups.message_text (text moved to groups)
     if ($q !== '') {
-        $base->whereExists(function ($sub) use ($q) {
-            $sub->selectRaw(1)
-                ->from('telegram_messages')
-                ->whereColumn('telegram_messages.message_group_id', 'message_groups.id')
-                ->where('telegram_messages.message_text', 'like', "%{$q}%");
-        });
+        $base->where('message_groups.message_text', 'like', "%{$q}%");
     }
 
     // Apply status filter (groups that have at least one message with that status)
@@ -328,10 +322,10 @@ class MainController extends Controller
                 ->whereColumn('telegram_messages.message_group_id', 'message_groups.id');
 
             if ($from) {
-                $sub->where('telegram_messages.sent_at', '>=', \Carbon\Carbon::parse($from)->startOfDay());
+                $sub->where('telegram_messages.sent_at', '>=', Carbon::parse($from)->startOfDay());
             }
             if ($to) {
-                $sub->where('telegram_messages.sent_at', '<=', \Carbon\Carbon::parse($to)->endOfDay());
+                $sub->where('telegram_messages.sent_at', '<=', Carbon::parse($to)->endOfDay());
             }
         });
     }
@@ -345,19 +339,35 @@ class MainController extends Controller
     // TEXT STATS per group
     $textStats = collect();
     if (!empty($groupIds)) {
-        $textStats = DB::table('telegram_messages')
+        // get counts and min/max sent_at from telegram_messages
+        $rawStats = DB::table('telegram_messages')
             ->whereIn('message_group_id', $groupIds)
             ->select(
                 'message_group_id',
                 DB::raw('COUNT(*) as total_messages'),
-                DB::raw('COUNT(DISTINCT message_text) as distinct_texts'),
-                DB::raw('MIN(message_text) as sample_text'),
                 DB::raw('MIN(sent_at) as started_at'),
                 DB::raw('MAX(sent_at) as ended_at')
             )
             ->groupBy('message_group_id')
             ->get()
             ->keyBy('message_group_id');
+
+        // get group texts (sample_text) from message_groups
+        $groupTexts = DB::table('message_groups')
+            ->whereIn('id', $groupIds)
+            ->pluck('message_text', 'id');
+
+        // build final textStats: distinct_texts = 1 (because text is per group)
+        $textStats = $rawStats->map(function ($row, $gid) use ($groupTexts) {
+            return (object) [
+                'message_group_id' => $gid,
+                'total_messages' => (int) $row->total_messages,
+                'distinct_texts' => 1,
+                'sample_text' => $groupTexts[$gid] ?? null,
+                'started_at' => $row->started_at,
+                'ended_at' => $row->ended_at,
+            ];
+        });
     }
 
     // Peer + status counts: per group -> per peer -> status counts
@@ -384,7 +394,7 @@ class MainController extends Controller
     }
 
     // TOTALS for header (groups & messages) — FILTERED by same phoneSub
-    $messageGroupsTotal = \App\Models\MessageGroup::whereIn('user_phone_id', $phoneSub)->count();
+    $messageGroupsTotal = MessageGroup::whereIn('user_phone_id', $phoneSub)->count();
 
     $telegramMessagesTotal = DB::table('telegram_messages')
         ->whereIn('message_group_id', function ($q) use ($phoneSub) {
@@ -394,18 +404,11 @@ class MainController extends Controller
         })
         ->count();
 
-    // Recent multi-text groups (sample messages)
+    // Recent messages per group (if you still want to show some recent telegram_messages)
     $recentMessagesByGroup = [];
-    $multiTextGroupIds = [];
-    foreach ($textStats as $gid => $stat) {
-        if ($stat->distinct_texts > 1) {
-            $multiTextGroupIds[] = $gid;
-        }
-    }
-
-    if (!empty($multiTextGroupIds)) {
+    if (!empty($groupIds)) {
         $recentRows = DB::table('telegram_messages')
-            ->whereIn('message_group_id', $multiTextGroupIds)
+            ->whereIn('message_group_id', $groupIds)
             ->orderByDesc('sent_at')
             ->get()
             ->groupBy('message_group_id');
@@ -414,7 +417,6 @@ class MainController extends Controller
             $recentMessagesByGroup[$gid] = $rows->take(10);
         }
     }
-
     return view('operations.index', compact(
         'department',
         'messageGroups',
@@ -428,8 +430,8 @@ class MainController extends Controller
         'status',
         'from',
         'to',
-        'users',           // <-- qo'shilgan
-        'selectedUserId'   // <-- qo'shilgan
+        'users',
+        'selectedUserId'
     ));
 }
 

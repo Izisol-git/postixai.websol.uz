@@ -150,7 +150,7 @@
         $stat = $textStats->get($gid);
         $peers = $peerStatusByGroup[$gid] ?? [];
         $total = $groupTotals[$gid] ?? [];
-        $sample = $stat->sample_text ?? null;
+        $sample = $group->message_text ?? null;
       @endphp
 
       <div class="message-group">

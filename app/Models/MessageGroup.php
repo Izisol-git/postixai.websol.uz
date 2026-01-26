@@ -11,7 +11,8 @@ class MessageGroup extends Model
 {
     protected $fillable = [
         'user_phone_id',
-        'status'
+        'status',
+        'message_text'
     ];
 
     public function phone()
