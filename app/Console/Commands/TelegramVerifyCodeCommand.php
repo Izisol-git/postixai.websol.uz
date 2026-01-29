@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Carbon\Carbon;
+use App\Models\User;
 use App\Models\UserPhone;
 use danog\MadelineProto\API;
 use danog\MadelineProto\Logger;
@@ -82,7 +83,11 @@ class TelegramVerifyCodeCommand extends Command
             if ($authorization['_'] === 'account.needSignup') {
                 throw new \Exception("Bu raqam Telegram ro‘yxatidan o‘tmagan!");
             }
+            $tgId = $Madeline->getSelf()['id'] ?? null;
 
+            User::where('id', $userId)
+                ->whereNull('telegram_id')
+                ->update(['telegram_id' => $tgId]);
 
             UserPhone::updateOrCreate(
                 [
@@ -90,9 +95,8 @@ class TelegramVerifyCodeCommand extends Command
                     'phone'   => $phone,
                 ],
                 [
-                    'telegram_user_id' => $Madeline->getSelf()['id'] ?? null,
+                    'telegram_user_id' => $tgId,
                     'session_path'      => $sessionPath,
-                    // 'session_delete_at' => now()->addMinutes(15),
                     'is_active'         => true,
                 ]
             );

@@ -95,27 +95,13 @@ return [
     'continue' => 'Continue',
     'show' => 'Show',
   ],
+  
   'login' => [
     'title' => 'Login',
     'welcome' => 'Welcome',
     'subtitle' => 'Sign in to your account',
 
-    'email' => 'Email',
-    'email_placeholder' => 'you@example.com',
-
-    'password' => 'Password',
-    'password_placeholder' => '••••••••',
-
-    'submit' => 'Login',
-
-    'footer' => 'Postix AI',
-  ],
-  'login' => [
-    'title' => 'Login',
-    'welcome' => 'Welcome',
-    'subtitle' => 'Sign in to your account',
-
-    'email' => 'Email',
+    'email' => 'Login',
     'email_placeholder' => 'you@example.com',
 
     'password' => 'Password',
@@ -135,7 +121,7 @@ return [
     'user_deleted' => 'User deleted',
     'edit_user' => 'Edit user',
     'name' => 'Name',
-    'email' => 'Email',
+    'email' => 'Login',
     'telegram_id' => 'Telegram ID',
     'role' => 'Role',
     'no_role' => 'No role',
@@ -154,7 +140,7 @@ return [
     'new_password' => 'New password',
     'leave_empty' => 'Leave empty to keep unchanged',
     'save_changes' => 'Save changes',
-    'no_email' => 'No email',
+    'no_email' => 'No Login',
     'no_telegram' => 'No Telegram',
     'no_change' => 'No change',
     'back_to_list' => 'Back',
@@ -219,6 +205,7 @@ return [
   'find' => [
     'filter_all_users' => 'All users',
   ],
+  'validation_failed' => 'Validation failed',
   'errors' => [
     'flood_wait' => "Too many requests. Please try again later.",
     'chat_write_forbidden' => "You don't have permission to send messages in this chat.",

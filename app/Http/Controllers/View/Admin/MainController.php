@@ -252,8 +252,15 @@ class MainController extends Controller
 
         $q = $request->input('q');
 
-        $usersQuery = User::with(['avatar', 'phones.ban', 'ban', 'role'])
-            ->where('department_id', $department->id);
+        $usersQuery = User::with([
+            'avatar',
+            'phones' => function ($query) {
+                $query->where('is_active', true); // faqat aktiv telefonlar
+            },
+            'phones.ban',
+            'ban',
+            'role'
+        ])->where('department_id', $department->id);
 
         if ($q) {
             $usersQuery->where(function ($w) use ($q) {

@@ -61,19 +61,19 @@ class CallbackHandler
 
         $user = User::where('telegram_id', $telegramUserId)->first();
 
-        if (str_starts_with($data, 'catalog_page_')) {
-
-            $page = (int) str_replace('catalog_page_', '', $data);
+        if (str_starts_with($data, 'group_page_')) {
+            $page = (int) str_replace('group_page_', '', $data);
 
             $this->telegram->editMessageText([
                 'chat_id' => $chatId,
                 'message_id' => $callback->getMessage()->getMessageId(),
-                'text' => 'Iltimos, catalog tanlang:',
-                'reply_markup' => $this->tgService->buildCatalogKeyboard($user->id, $page)
+                'text' => 'Xabar guruhini tanlang:',
+                'reply_markup' => $this->tgService->buildGroupKeyboard($user, $page)
             ]);
 
             return 'ok';
         }
+
         if (str_starts_with($data, 'catalog_send_page_')) {
 
             $page = (int) str_replace('catalog_send_page_', '', $data);
@@ -93,7 +93,7 @@ class CallbackHandler
 
             $page = (int) str_replace('phone_page_', '', $data);
 
-            $phones = $user->phones()->get();
+            $phones = $user->phones()->where('is_active', true)->get();
 
             $this->tgService->tg(
                 fn() =>
@@ -117,7 +117,7 @@ class CallbackHandler
             TelegramLogoutJob::dispatch($phoneId)->onQueue('telegram');
             sleep(3);
 
-            $phones = $user->phones()->get();
+            $phones = $user->phones()->where('is_active', true)->get();
 
             $this->tgService->tg(
                 fn() =>
@@ -129,10 +129,10 @@ class CallbackHandler
                         ->setResizeKeyboard(true)
                         ->setOneTimeKeyboard(true)
                         ->row([
-                            Keyboard::button([
-                                'text' => '📱 Telefon raqamini yuborish',
-                                'request_contact' => true,
-                            ])
+                            Keyboard::inlineButton([
+                                'text' => 'Menyuga qaytish',
+                                'callback_data' => 'cancel_auth',
+                            ]),
                         ])
                         : $this->tgService->buildPhoneSelectKeyboard($phones),
                 ])
@@ -196,7 +196,7 @@ class CallbackHandler
                 ])
                 ->row([
                     Keyboard::inlineButton([
-                        'text' => '❌ Bekor qilish',
+                        'text' => 'Menyuga qaytish',
                         'callback_data' => 'cancel_auth',
                     ]),
                 ]);
@@ -504,7 +504,7 @@ class CallbackHandler
             $cancelKeyboard = Keyboard::make()->inline()
                 ->row([
                     Keyboard::inlineButton([
-                        'text' => "❌ Bekor qilish",
+                        'text' => "Menyuga qaytish",
                         'callback_data' => 'cancel_auth'
                     ]),
                 ]);
@@ -779,78 +779,66 @@ class CallbackHandler
             $this->tgService->tg(fn() =>
             $this->telegram->sendMessage([
                 'chat_id' => $chatId,
-                'text' => 'Catalog tanlash bekor qilindi.',
+                'text' => 'Bosh menyu:',
                 'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard($activePhone)
             ]));
             return 'ok';
         }
-        if ($data === 'skip_password' && $user) {
+        // if ($data === 'skip_password' && $user) {
 
-            $phone = $user->phones()
-                ->whereIn('state', ['waiting_code', 'waiting_password', 'waiting_code2'])
-                ->latest()
-                ->first();
-
-
-            if (!$phone) {
-                $this->tgService->tg(fn() =>
-                $this->telegram->answerCallbackQuery([
-                    'callback_query_id' => $callback->getId(),
-                    'text' => "Holat topilmadi",
-                    'show_alert' => true,
-                    // 'reply_markup' => $cancelKeyboard
-                ]));
-                return 'ok';
-            }
-
-            TelegramVerifyJob::dispatch(
-                $phone->phone,
-                $user->id,
-                $phone->code,
-                null
-            )->onQueue('telegram');
-            // $phoneNumber = $phone->phone;
-            // $userId = $user->id;
-            // $code = $phone->code;
-            // $password = null;
-            // $php     = '/opt/php83/bin/php';
-            // $artisan = base_path('artisan');
-            // if ($password) {
-            //     $command = "nohup {$php} {$artisan} telegram:verify {$phoneNumber} {$userId} {$code} --password={$password} >/dev/null 2>&1 &";
-            // } else {
-            //     $command = "nohup {$php} {$artisan} telegram:verify {$phoneNumber} {$userId} {$code} >/dev/null 2>&1 &";
-            // }
-            // exec($command);
-
-            $phone->update([
-                'code' => null,
-                'state' => 'loggin_process'
-            ]);
-
-            $this->telegram->answerCallbackQuery([
-                'callback_query_id' => $callback->getId(),
-                'text' => "Password o'tkazib yuborildi",
-                'show_alert' => false,
-                'reply_markup' => $this->tgService->cancelInlineKeyboard()
-
-            ]);
-            $keyboard = Keyboard::make()
-                ->setResizeKeyboard(true)
-                ->setOneTimeKeyboard(true)
-                ->row([
-                    Keyboard::button('📱 Telefonlarim'),
-                ]);
-            sleep(3);
-            $this->tgService->tg(fn() =>
-
-            $this->telegram->sendMessage([
-                'chat_id' => $chatId,
-                'text' => "Tasdiqlash jarayoni boshlandi 🎉",
-                'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard(true)
+        //     $phone = $user->phones()
+        //         ->whereIn('state', ['waiting_code', 'waiting_password', 'waiting_code2'])
+        //         ->latest()
+        //         ->first();
 
 
-            ]));
-        }
+        //     if (!$phone) {
+        //         $this->tgService->tg(fn() =>
+        //         $this->telegram->answerCallbackQuery([
+        //             'callback_query_id' => $callback->getId(),
+        //             'text' => "Holat topilmadi",
+        //             'show_alert' => true,
+        //             // 'reply_markup' => $cancelKeyboard
+        //         ]));
+        //         return 'ok';
+        //     }
+
+        //     TelegramVerifyJob::dispatch(
+        //         $phone->phone,
+        //         $user->id,
+        //         $phone->code,
+        //         null
+        //     )->onQueue('telegram');
+
+        //     $phone->update([
+        //         'code' => null,
+        //         'state' => 'loggin_process'
+        //     ]);
+
+        //     $this->telegram->answerCallbackQuery([
+        //         'callback_query_id' => $callback->getId(),
+        //         'text' => "Password o'tkazib yuborildi",
+        //         'show_alert' => false,
+        //         'reply_markup' => $this->tgService->cancelInlineKeyboard()
+
+        //     ]);
+        //     $keyboard = Keyboard::make()
+        //         ->setResizeKeyboard(true)
+        //         ->setOneTimeKeyboard(true)
+        //         ->row([
+        //             Keyboard::button('📱 Telefonlarim'),
+        //         ]);
+        //     sleep(3);
+        //     $this->tgService->tg(fn() =>
+
+        //     $this->telegram->sendMessage([
+        //         'chat_id' => $chatId,
+        //         'text' => "Tasdiqlash jarayoni boshlandi 🎉",
+        //         'reply_markup' => $this->tgService->mainMenuWithHistoryKeyboard(true)
+
+
+        //     ]));
+        // }
         if ($data === 'cancel_auth' && $user) {
             return $this->tgService->cancelAuth($user, $chatId, $callback->getId());
         }

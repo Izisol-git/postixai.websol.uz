@@ -5,6 +5,8 @@
 
 @section('content')
 <style>
+:root{ --bg:#071427; --card:#0f2233; --text:#e7f4ff; --muted:#9fb7dd; --accent:#3b82f6; --accent2:#facc15; }
+
 /* Compact filters styles */
 .filter-bar .form-control-sm,
 .filter-bar .form-select-sm,
@@ -46,13 +48,36 @@
   display: flex;
   flex-wrap: wrap;
 }
+
+/* Message group: clearer separation and nicer corners */
 .message-group {
-  margin-bottom: 16px; /* hozirgi 8px dan kattalashtirish */
-  padding: 10px;       /* ichki bo‘shliqni biroz oshirish */
-  border-radius: 6px;  /* yumaloq burchak, vizual uchun */
-  background-color: rgba(255,255,255,0.02); /* juda yumshoq fon, bo‘shliqni ko‘rsatadi */
+  position: relative;
+  margin-bottom: 18px; /* increased gap so groups don't blur together */
+  padding: 14px;       /* a bit more inner spacing */
+  border-radius: 10px;  /* rounder corners */
+  background-color: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  overflow: hidden;
 }
 
+/* Accent bar on the left to show boundaries */
+.message-group::before{
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+/* subtle hover lift to emphasize group boundaries */
+.message-group:hover{
+  transform: translateY(-3px);
+  transition: transform .16s ease-out, box-shadow .16s ease-out;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.55);
+}
 
 /* Make action button slightly tighter */
 .filter-bar .btn-search {
@@ -63,8 +88,12 @@
 .status-badge { padding:6px 8px; font-size:.85rem; }
 .status-chip { padding:3px 6px; font-size:.78rem; }
 
-/* Make peer-row denser */
-.peer-row { padding:6px; }
+/* Make peer-row denser and separated */
+.peer-row { padding:6px 0; }
+.peer-row + .peer-row { border-top: 1px solid rgba(255,255,255,0.03); padding-top:10px; margin-top:8px; }
+
+/* Replace the old hr look with a very faint divider (keeps visual flow) */
+.group-divider { border-top: 1px solid rgba(255,255,255,0.03); margin:10px 0; }
 
 /* Responsive: stack filters on very small screens */
 @media (max-width: 640px) {
@@ -142,6 +171,11 @@
     </div>
   </div>
 
+  {{-- Top pagination (added) --}}
+  <div class="mt-3 d-flex justify-content-center">
+    {{ $messageGroups->withQueryString()->links('pagination::bootstrap-5') }}
+  </div>
+
   {{-- Groups list (keeps previous compact styles) --}}
   <div>
     @foreach ($messageGroups as $group)
@@ -168,7 +202,7 @@
             @php
               $pendingCount = ($total['pending'] ?? 0) + ($total['scheduled'] ?? 0);
             @endphp
-            <a href="{{ route('admin.operations.show', $gid) }}" class="btn btn-sm btn-outline-primary">{{__('messages.operations.show')}}</a>            
+            <a href="{{ route('admin.operations.show', $gid) }}" class="btn btn-sm btn-outline-primary">{{__('messages.operations.show')}}</a>
             @if($group->status !=='canceled')
               <form method="POST" action="{{ route('message-groups.cancel', $gid) }}" class="m-0">
                 @csrf
@@ -180,7 +214,7 @@
           </div>
         </div>
 
-        <hr style="border-color:rgba(255,255,255,0.03); margin:8px 0;">
+        <div class="group-divider"></div>
 
         <div class="message-text mb-2">
           <strong style="color:var(--accent);">{{ __('messages.operations.text_label') }}:</strong>
@@ -204,7 +238,7 @@
           <div style="max-height:220px; overflow:auto; padding-right:6px;">
             @forelse($peers as $peer => $statuses)
               @php $peerTotal = array_sum($statuses); @endphp
-              <div class="peer-row d-flex justify-content-between align-items-center mb-2">
+              <div class="peer-row d-flex justify-content-between align-items-center">
                 <div style="min-width:0; overflow:hidden;">
                   <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:400px;">{{ $peer }}</strong>
                   <div class="text-muted small">{{ __('messages.operations.peer_total') }}: {{ $peerTotal }}</div>
@@ -243,6 +277,7 @@
       </div>
     @endforeach
 
+    {{-- Bottom pagination (kept) --}}
     <div class="mt-3 d-flex justify-content-center">
       {{ $messageGroups->withQueryString()->links('pagination::bootstrap-5') }}
     </div>
@@ -273,7 +308,7 @@
 
   function openConfirm(text, form) {
     activeForm = form;
-    desc.textContent = text || '{{ __("messages.operations.confirm_text_default") }}';
+    desc.textContent = text || '{{ __('messages.operations.confirm_text_default') }}';
     overlay.style.display = 'flex';
   }
 

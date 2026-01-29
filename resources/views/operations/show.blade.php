@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', __('messages.group.show_title', ['id' => $operation->id ?? '']))
-
+@section('show-back', true)
 @section('page-title')
     {{ __('messages.group.show_title', ['id' => $operation->id ?? '']) }}
 @endsection

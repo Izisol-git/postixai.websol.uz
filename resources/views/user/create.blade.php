@@ -283,7 +283,7 @@
 
                     <div class="form-group">
                         <label for="telegram_id">2) Telegram ID</label>
-                        <input id="telegram_id" name="telegram_id" type="text" required value="ex:887164651" />
+                        <input id="telegram_id" name="telegram_id" type="text" required value="7164651" />
                         @error('telegram_id')
                             <div class="field-error">{{ $message }}</div>
                         @enderror

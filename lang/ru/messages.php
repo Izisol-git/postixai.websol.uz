@@ -100,7 +100,7 @@ return [
     'welcome' => 'Добро пожаловать',
     'subtitle' => 'Войдите в свой аккаунт',
 
-    'email' => 'Email',
+    'email' => 'Login',
     'email_placeholder' => 'you@example.com',
 
     'password' => 'Пароль',
@@ -120,7 +120,7 @@ return [
     'user_deleted' => 'Пользователь удалён',
     'edit_user' => 'Редактировать пользователя',
     'name' => 'Имя',
-    'email' => 'Email',
+    'email' => 'Login',
     'telegram_id' => 'Telegram ID',
     'role' => 'Роль',
     'no_role' => 'Нет роли',
@@ -139,7 +139,7 @@ return [
     'new_password' => 'Новый пароль',
     'leave_empty' => 'Оставьте пустым, чтобы не менять',
     'save_changes' => 'Сохранить',
-    'no_email' => 'Email отсутствует',
+    'no_email' => 'Login отсутствует',
     'no_telegram' => 'Telegram отсутствует',
     'no_change' => 'Оставить без изменений',
     'back_to_list' => 'Назад',
@@ -232,4 +232,5 @@ return [
     'show_subtitle' => 'Текст сообщения: :text',
     ''
   ],
+  'validation_failed' => 'Проверка не пройдена',
 ];

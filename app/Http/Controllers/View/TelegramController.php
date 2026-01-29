@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\View;
 
 use App\Models\User;
+use App\Models\UserPhone;
 use App\Models\MessageGroup;
 use Illuminate\Http\Request;
 use App\Jobs\CleanupScheduledJob;
@@ -48,7 +49,12 @@ class TelegramController extends Controller
             $user = $this->resolveUserFromRequest($request);
 
             $this->authService->login($user, $request->phone);
-            sleep(2);
+            if (!$this->canUsePhone($request->phone, $user->id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => __('messages.telegram.user_exists')
+            ], 403);
+        }
             return response()->json([
                 'status' => 'sms_sent',
                 'message' => __('messages.telegram.sms_sent'),
@@ -60,7 +66,32 @@ class TelegramController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
     }
+    public function canUsePhone(string $phone, ?int $currentUserId = null): bool
+{
+    $userPhone = UserPhone::where('phone', $phone)->first();
 
+    if (!$userPhone) {
+        return true;
+    }
+
+    if ($userPhone->is_active) {
+        return false;
+    }
+
+    if ($userPhone->telegram_user_id) {
+        $owner = User::where('telegram_id', $userPhone->telegram_user_id)->first();
+
+        if ($owner) {
+            if ($currentUserId !== null && (int)$owner->id === (int)$currentUserId) {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    // boshqa holatlarda ishlatish mumkin
+    return true;
+}
     public function sendCode(Request $request)
     {
         $request->validate([

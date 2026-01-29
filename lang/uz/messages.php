@@ -104,7 +104,7 @@ return [
         'welcome' => 'Xush kelibsiz',
         'subtitle' => 'Hisobingizga kiring',
 
-        'email' => 'Email',
+        'email' => 'Login',
         'email_placeholder' => 'you@example.com',
 
         'password' => 'Parol',
@@ -124,7 +124,7 @@ return [
         'user_deleted' => 'Foydalanuvchi o‘chirildi',
         'edit_user' => 'Foydalanuvchini tahrirlash',
         'name' => 'Ism',
-        'email' => 'Email',
+        'email' => 'Login',
         'telegram_id' => 'Telegram ID',
         'role' => 'Rol',
         'no_role' => 'Rol yo‘q',
@@ -143,7 +143,7 @@ return [
         'new_password' => 'Yangi parol',
         'leave_empty' => 'O‘zgarmasligi uchun bo‘sh qoldiring',
         'save_changes' => 'Saqlash',
-        'no_email' => 'Email mavjud emas',
+        'no_email' => 'Login mavjud emas',
         'no_telegram' => 'Telegram mavjud emas',
         'no_change' => 'O‘zgarmasdan qoldirish',
         'back_to_list' => 'Orqaga',
@@ -241,5 +241,6 @@ return [
         'show_title' => 'Operatsiya #:id',
         'show_subtitle' => 'Xabar matni: :text',
     ],
+    'validation_failed' => 'Tekshiruv muvaffaqiyatsiz',
 
 ];

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\View\Admin;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPhone;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Jobs\TelegramAuthJob;
+use App\Jobs\TelegramVerifyJob;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
@@ -14,48 +16,57 @@ use App\Jobs\VerifyPhoneWithUserJob;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use App\Application\Services\LimitService;
 use Illuminate\Validation\ValidationException;
 use App\Application\Services\TelegramAuthService;
 
 class UserController extends Controller
 {
-    public function __construct(protected LimitService $limit,protected TelegramAuthService $authService)
-    {
-    }
+    public function __construct(protected LimitService $limit, protected TelegramAuthService $authService) {}
     public function show(Request $request, $id)
-{
-    $user = User::with([
-        'avatar',
-        'phones.messageGroups.messages',
-        'ban',
-        'role',
-        'department',
-    ])->findOrFail($id);
+    {
+        $user = User::with([
+            'avatar',
+            'phones.messageGroups.messages',
+            'ban',
+            'role',
+            'department',
+        ])->findOrFail($id);
 
-    $department = $user->department;
+        $department = $user->department;
 
-    // ✅ OPERATIONS = messageGroups
-    $operationsCount = $user->phones
-        ->pluck('messageGroups')
-        ->flatten()
-        ->count();
+        $operationsCount = $user->phones
+            ->pluck('messageGroups')
+            ->flatten()
+            ->count();
 
-    // ✅ MESSAGES
-    $messagesCount = $user->phones
-        ->pluck('messageGroups')
-        ->flatten()
-        ->pluck('messages')
-        ->flatten()
-        ->count();
+        $messagesCount = $user->phones
+            ->pluck('messageGroups')
+            ->flatten()
+            ->pluck('messages')
+            ->flatten()
+            ->count();
+        $canBan = true;
 
-    return view('admin.users.show', compact(
-        'user',
-        'department',
-        'operationsCount',
-        'messagesCount'
-    ));
-}
+        if ($request->user()->id == $user->id) {
+            $canBan = false;
+        }
+        if ($request->user()->role->name !== 'admin') {
+            $canBan = false;
+        }
+        $roles = Role::whereNotIn('name', ['superadmin'])->get();
+
+
+        return view('admin.users.show', compact(
+            'user',
+            'department',
+            'operationsCount',
+            'messagesCount',
+            'canBan',
+            'roles'
+        ));
+    }
 
 
     public function update(Request $request, $id)
@@ -63,14 +74,14 @@ class UserController extends Controller
         $user = User::with('avatar')->findOrFail($id);
 
         $data = $request->validate([
-            'name' => ['required','string','max:255'],
-            'email' => ['nullable','email','max:255', Rule::unique('users')->ignore($user->id)],
-            'telegram_id' => ['nullable','string','max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'telegram_id' => ['nullable', 'string', 'max:255'],
             // password no confirm now:
-            'password' => ['nullable','min:6'],
-            'avatar' => ['nullable','image','max:2048'],
-            'remove_avatar' => ['nullable','boolean'],
-            'active_phone_id' => ['nullable','integer','exists:user_phones,id'],
+            'password' => ['nullable', 'min:6'],
+            'avatar' => ['nullable', 'image', 'max:2048'],
+            'remove_avatar' => ['nullable', 'boolean'],
+            'active_phone_id' => ['nullable', 'integer', 'exists:user_phones,id'],
         ]);
 
         $user->name = $data['name'];
@@ -89,7 +100,8 @@ class UserController extends Controller
             try {
                 $old = $user->avatar;
                 if ($old && $old->path) Storage::disk('public')->delete($old->path);
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
 
             $user->avatar()->updateOrCreate([], ['path' => $path]);
         } elseif ($request->boolean('remove_avatar')) {
@@ -97,14 +109,15 @@ class UserController extends Controller
                 $old = $user->avatar;
                 if ($old && $old->path) Storage::disk('public')->delete($old->path);
                 $user->avatar()->delete();
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $user->save();
 
         // set active phone if requested
         if (!empty($data['active_phone_id'])) {
-            DB::transaction(function() use ($user, $data) {
+            DB::transaction(function () use ($user, $data) {
                 DB::table('user_phones')->where('user_id', $user->id)->update(['is_active' => 0]);
                 DB::table('user_phones')->where('id', $data['active_phone_id'])->update(['is_active' => 1]);
             });
@@ -120,7 +133,7 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         $data = $request->validate([
-            'phone' => ['required','string','max:50'],
+            'phone' => ['required', 'string', 'max:50'],
         ]);
 
         $phone = new UserPhone();
@@ -132,7 +145,6 @@ class UserController extends Controller
         return redirect()->route('admin.users.show', $user->id)->with('success', __('messages.users.phone_added') ?? 'Phone added');
     }
 
-    // delete phone
     public function deletePhone(Request $request, $id, $phoneId)
     {
         $user = User::findOrFail($id);
@@ -154,14 +166,26 @@ class UserController extends Controller
     }
     public function canUsePhone(string $phone): bool
     {
-        $userPhone = UserPhone::where('phone', $phone)->whereNotNull('telegram_user_id')->first();
-        if (!$userPhone || !$userPhone->telegram_user_id) {
+        $userPhone = UserPhone::where('phone', $phone)->first();
+
+        if (!$userPhone) {
             return true;
         }
-        $exists = User::where('telegram_id', $userPhone->telegram_user_id)->exists();
 
-        return ! $exists;
+        if ($userPhone->is_active) {
+            return false;
+        }
+
+        if ($userPhone->telegram_user_id) {
+            $exists = User::where('telegram_id', $userPhone->telegram_user_id)->exists();
+            if ($exists) {
+                return false;
+            }
+        }
+
+        return true;
     }
+
 
     public function destroy(Request $request, $id)
     {
@@ -171,7 +195,8 @@ class UserController extends Controller
             $old = $user->avatar;
             if ($old && $old->path) Storage::disk('public')->delete($old->path);
             $user->avatar()->delete();
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         $departmentId = $user->department_id;
         $user->delete();
@@ -181,81 +206,107 @@ class UserController extends Controller
 
     public function sendPhone(Request $request)
     {
-        
-        $request->validate(['phone' => 'required|string']);
+        $validator = Validator::make($request->all(), [
+            'phone' => 'required|string',
+            'name' => 'required|string|max:255',
+            'login' => 'required|string|max:255|unique:users,email',
+            'password' => 'required|string|min:6',
+            'role_id' => 'nullable|integer|exists:roles,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => __('messages.validation_failed') ?? 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
 
         try {
-        $phone = preg_replace('/[^0-9+]/', '', $request->input('phone', ''));
-        if (!str_starts_with($phone, '+')) {
-            $phone = '+' . $phone;
-        }
+            $phone = preg_replace('/[^0-9+]/', '', $request->input('phone', ''));
+            if (!str_starts_with($phone, '+')) {
+                $phone = '+' . $phone;
+            }
 
-        $user = $this->resolveUserFromRequest($request);
+            $user = $this->resolveUserFromRequest($request);
 
-        if (!$this->canUsePhone($phone)) {
+            if (!$this->canUsePhone($phone)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('messages.telegram.user_exists')
+                ], 403);
+            }
+
+            if (!$this->limit->canCreateUser($user)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('messages.telegram.limit')
+                ], 403);
+            }
+            $newUser = User::create([
+                'name' => $request->input('name'),
+                'email' => $request->input('login'),
+                'password' => Hash::make($request->input('password')),
+                'role_id' => $request->input('role_id'),
+                'created_by' => $user->id,
+                'department_id' => $user->department_id,
+            ]);
+            $lockKey = "telegram_verify_lock_{$phone}_{$newUser->id}";
+            $lockTtlSeconds = 60 * 10;
+
+            $started = false;
+            if (Cache::add($lockKey, true, $lockTtlSeconds)) {
+                TelegramAuthJob::dispatch($phone, $newUser->id,)->onQueue('telegram');
+                $started = true;
+            }
+
             return response()->json([
-                'status' => 'error',
-                'message' => __('messages.telegram.user_exists')
-            ], 403);
+                'status' => $started ? 'sms_sent' : 'locked',
+                'message' => $started
+                    ? __('messages.telegram.sms_sent')
+                    : (__('messages.telegram.already_in_progress') ?? 'Verification already in progress'),
+                'user_id' => $user->id,
+            ], 200);
+        } catch (ValidationException $e) {
+            return response()->json(['status' => 'error', 'errors' => $e->errors()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
-
-        if (!$this->limit->canCreateUser($user)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => __('messages.telegram.limit')
-            ], 403);
-        }
-
-        $lockKey = "telegram_verify_lock_{$phone}_{$user->id}";
-        $lockTtlSeconds = 60 * 10; 
-
-        $started = false;
-        if (Cache::add($lockKey, true, $lockTtlSeconds)) {
-            TelegramAuthJob::dispatch($phone, $user->id,'add_user')->onQueue('telegram');
-            $started = true;
-        }
-
-        return response()->json([
-            'status' => $started ? 'sms_sent' : 'locked',
-            'message' => $started
-                ? __('messages.telegram.sms_sent')
-                : (__('messages.telegram.already_in_progress') ?? 'Verification already in progress'),
-            'user_id' => $user->id,
-        ], 200);
-
-    } catch (ValidationException $e) {
-        return response()->json(['status' => 'error', 'errors' => $e->errors()], 422);
-    } catch (\Throwable $e) {
-        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
     }
-    }
-    
+
     public function storeUserWithTelegram(Request $request)
     {
         $data = $request->validate([
             'phone' => 'required|string',
             'code' => 'required|string',
+            'login' => 'required|string|max:255|exists:users,email',
             'department_id' => 'nullable|integer|exists:departments,id',
+            'user_id' => 'nullable|integer|exists:users,id'
         ]);
-        $user=$request->user();
-
+        $user = $request->user();
+        $user = User::where('email', $data['login'])->first();
+        if (!$user) {
+            return redirect()->back()->with('error', __('messages.telegram.user_not_found'));
+        }
         $departmentId = $data['department_id'] ?? optional($request->user())->department_id ?? null;
 
-        $existsInDepartment = UserPhone::where('phone', $data['phone'])
-            ->whereHas('user', function ($q) use ($departmentId) {
-                if ($departmentId === null) {
-                    $q->whereNull('department_id');
-                } else {
-                    $q->where('department_id', $departmentId);
-                }
-            })
-            ->exists();
+        // $existsInDepartment = UserPhone::where('phone', $data['phone'])
+        //     ->whereHas('user', function ($q) use ($departmentId) {
+        //         if ($departmentId === null) {
+        //             $q->whereNull('department_id');
+        //         } else {
+        //             $q->where('department_id', $departmentId);
+        //         }
+        //     })
+        //     ->exists();
 
-        if ($existsInDepartment) {
-            return redirect()->back()->with('error', __('messages.telegram.user_exists'));
-        }
+        // if ($existsInDepartment) {
+        //     return redirect()->back()->with('error', __('messages.telegram.user_exists'));
+        // }
 
-        VerifyPhoneWithUserJob::dispatch($data['phone'],$user->id, $data['code'], null, $departmentId)
+        // VerifyPhoneWithUserJob::dispatch($data['phone'], $user->id, $data['code'], null, $departmentId)
+        //     ->onQueue('telegram');
+        TelegramVerifyJob::dispatch($data['phone'], $user->id, $data['code'], $departmentId, null)
             ->onQueue('telegram');
         $token = (string) Str::uuid();
         Cache::put("notif:{$token}", [
@@ -267,12 +318,13 @@ class UserController extends Controller
     }
     public function newTelegramUsers()
     {
-        $user=request()->user();
-        $department=$user->department;
-        return view('admin.telegram.telegram-login', compact('department'));
+        $user = request()->user();
+        $department = $user->department;
+        $roles = Role::whereNotIn('name', ['superadmin'])->get();
+        return view('admin.telegram.telegram-login', compact('department', 'roles'));
     }
-        
-    
+
+
 
 
 

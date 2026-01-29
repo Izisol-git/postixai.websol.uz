@@ -20,26 +20,28 @@
 @endif
 
     <!-- Topbar -->
-    <div class="topbar d-flex justify-content-between align-items-center mb-3">
-        <div class="title">
-            <span style="font-weight:800; color:var(--accent)">{{ config('app.name', 'POSTIX AI') }}</span>
-            <span class="breadcrumbs"> / <a href="{{ route('departments.dashboard', $department->id) }}"
-                    style="color:var(--muted); text-decoration:none;">{{ $department->name }}</a>
-                → <span style="color:var(--text)">{{__('messages.admin.users') }}</span></span>
-        </div>
-        
-        <div class="d-flex gap-2 align-items-center">
-            {{-- Server-side search form. Enter bosilganda serverga yuboradi --}}
-            <form method="GET" action="{{ route('departments.users', $department->id) }}" class="d-flex gap-2 align-items-center">
-                <input id="usersSearch" name="q" class="form-control form-control-sm" type="search" value="{{ $q ?? '' }}" placeholder="{{ __('messages.admin.search_users') ?? 'Search users...' }}" style="width:240px;">
-                <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('messages.users.search') ?? 'Search' }}</button>
-            </form>
+    <!-- YANGI: (oddiy, muammosiz) -->
+<div class="page-topbar d-flex justify-content-between align-items-center mb-3">
 
-            <a href="{{ route('admin.telegram.new-users') }}" class="btn btn-sm btn-success">
-                + {{ __('messages.admin.add_user') ?? 'Add user' }}
-            </a>
-        </div>
+    <div class="title">
+        <span style="font-weight:800; color:var(--accent)">{{ config('app.name', 'POSTIX AI') }}</span>
+        <span class="breadcrumbs"> / <a href="{{ route('departments.dashboard', $department->id) }}"
+                style="color:var(--muted); text-decoration:none;">{{ $department->name }}</a>
+            → <span style="color:var(--text)">{{__('messages.admin.users') }}</span></span>
     </div>
+    
+    <div class="d-flex gap-2 align-items-center">
+        <form method="GET" action="{{ route('departments.users', $department->id) }}" class="d-flex gap-2 align-items-center">
+            <input id="usersSearch" name="q" class="form-control form-control-sm" type="search" value="{{ $q ?? '' }}" placeholder="{{ __('messages.admin.search_users') ?? 'Search users...' }}" style="width:240px;">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">{{ __('messages.users.search') ?? 'Search' }}</button>
+        </form>
+
+        <a href="{{ route('admin.telegram.new-users') }}" class="btn btn-sm btn-success">
+            + {{ __('messages.admin.add_user') ?? 'Add user' }}
+        </a>
+    </div>
+</div>
+
 
     <!-- Department info -->
     <div class="card p-3 mb-3">

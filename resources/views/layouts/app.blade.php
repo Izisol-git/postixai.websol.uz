@@ -138,20 +138,26 @@
         }
 
         .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
 
-    position: sticky;    /* sticky qilamiz */
-    top: 0;              /* tepada yopishadi */
-    background: var(--bg); /* fonini saqlaymiz, scrollda aralashmasligi uchun */
-    padding: 12px 20px;  /* biroz ichki padding */
-    z-index: 1000;       /* boshqa elementlar ustida turishi uchun */
-    border-bottom: 1px solid var(--muted-2); /* vizual ajratish uchun */
-}
- 
+            position: sticky;
+            /* sticky qilamiz */
+            top: 0;
+            /* tepada yopishadi */
+            background: var(--bg);
+            /* fonini saqlaymiz, scrollda aralashmasligi uchun */
+            padding: 12px 20px;
+            /* biroz ichki padding */
+            z-index: 1000;
+            /* boshqa elementlar ustida turishi uchun */
+            border-bottom: 1px solid var(--muted-2);
+            /* vizual ajratish uchun */
+        }
+
 
         /* Cards */
         .card {
@@ -185,6 +191,39 @@
             background: var(--bs-secondary-bg);
             color: var(--bs-body-color);
             font-size: 14px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: transparent;
+            color: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform .08s ease, opacity .12s ease;
+        }
+
+        .back-btn:active {
+            transform: translateY(1px);
+        }
+
+        .back-btn[aria-disabled="true"] {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* small / compact on mobile */
+        @media (max-width:900px) {
+            .back-btn {
+                padding: 6px 8px;
+                gap: 6px;
+                font-size: 14px;
+            }
         }
     </style>
     <style>
@@ -328,6 +367,38 @@
         }
 
         /* Toast styling */
+        .layout-topbar {
+            position: sticky;
+            /* agar siz uni sticky qilmoqchi bo'lsangiz */
+            top: 0;
+            z-index: 3000;
+            /* juda yuqori — dropdown va boshqa overlaylardan ustun turadi */
+            overflow: visible;
+            /* dropdown kesilishi oldini olish */
+        }
+
+        /* 2) Page-level topbar (sarlavha, qidiruv, Add user) - pastroq z-index */
+        .page-topbar {
+            position: relative;
+            /* sticky bo'lishi shart emas; agar sticky kerak bo'lsa, use z-index pastroq */
+            z-index: 100;
+            overflow: visible;
+            /* kesilishni oldini oladi */
+        }
+
+        /* 3) Dropdown menyular har doim yuqorida chiqsin */
+        .dropdown-menu {
+            position: absolute !important;
+            z-index: 4000 !important;
+        }
+
+        /* 4) Agar card yoki boshqa containerlar transform ishlatayotgan bo'lsa,
+   ularni pastroq z-index bilan cheklash (agar kerak bo'lsa) */
+        .content .card,
+        .container-fluid {
+            z-index: 0;
+        }
+
         .toast-alert {
             min-width: 260px;
             max-width: 380px;
@@ -344,7 +415,82 @@
         .toast-enter {
             transform: translateY(-8px) scale(.98);
             opacity: 0;
-        } */
+        }
+
+
+        .sidebar {
+    width: 260px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 20px;
+    box-sizing: border-box;
+    border-right: 1px solid var(--muted-2);
+    background: linear-gradient(180deg, var(--card), rgba(0,0,0,0.05));
+    z-index: 1000;
+    transition: transform .28s ease;
+}
+
+/* Topbar z-index biroz pastroq bo'lsin, shunda mobilda sidebar ustida turishi mumkin */
+.topbar { z-index: 1100; }
+
+/* --- Mobile / Tablet: sidebar tepaga chiqsin (gorizontal nav) --- */
+@media (max-width: 900px) {
+    /* Layout: sidebar va main ustma-ust bo'ladi */
+    .layout { flex-direction: column; }
+
+    /* Desktop yon sidebarni yashiramiz (agar oldingi kodda d-none d-md-block bo'lsa) */
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: sticky;    /* tepaga yopishadi */
+        top: 0;
+        left: 0;
+        display: flex;       /* gorizontal nav */
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;   /* mobilga mos padding */
+        overflow-x: auto;    /* gorizontal scroll */
+        white-space: nowrap;  /* linklar bir qatorda qoladi */
+        border-right: none;  /* yon border bekor qilish */
+        border-bottom: 1px solid var(--muted-2); /* pastki chiziq */
+        background: linear-gradient(180deg, var(--card), rgba(0,0,0,0.03));
+        -webkit-overflow-scrolling: touch;
+        z-index: 1200; /* topda tursin */
+    }
+
+    /* nav-linklarni inline ko'rinishga o'tkazish */
+    .sidebar .nav {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .sidebar .nav-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 0; /* mobilda qator orasida bo'lmasin */
+        white-space: nowrap;
+    }
+
+    .sidebar .brand {
+        /* agar brandni saqlamoqchi bo'lsangiz kichikroq qiling yoki yashiring */
+        margin-right: 8px;
+        font-size: 0.95rem;
+        flex: 0 0 auto;
+    }
+
+    /* Agar siz hamburger ishlatishni xohlamasangiz uni yashiramiz */
+    .hamburger { display: none !important; }
+
+    /* Topbar ostida joylashishini ta'minlaymiz: topbar sticky bo'lsa, pastga margin qo'yish mumkin */
+    .topbar { position: sticky; top: 48px; } /* agar sidebar balandligi taxminan 48px bo'lsa */
+    /* Eslatma: agar sidebar balandligi dinamik bo'lsa top qiymatini sozlang yoki topbar sticky'ni o'chiring */
+}
     </style>
 
 
@@ -352,59 +498,126 @@
 
 <body>
     <script>
-document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
 
-    @if (session('success'))
-        showSuccess(@json(session('success')));
-    @endif
+            @if (session('success'))
+                showSuccess(@json(session('success')));
+            @endif
 
-    @if (session('error'))
-        showError(@json(session('error')));
-    @endif
+            @if (session('error'))
+                showError(@json(session('error')));
+            @endif
 
-    @if ($errors->any())
-        @foreach ($errors->all() as $err)
-            showError(@json($err));
-        @endforeach
-    @endif
+            @if ($errors->any())
+                @foreach ($errors->all() as $err)
+                    showError(@json($err));
+                @endforeach
+            @endif
 
-});
-</script>
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const btn = document.getElementById('backBtn');
+            if (!btn) return;
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                if (this.getAttribute('aria-disabled') === 'true') return;
+
+                // lock to prevent double/back-flood
+                this.setAttribute('aria-disabled', 'true');
+
+                // small visual feedback
+                this.style.opacity = '.85';
+
+                // try history.back(); if it doesn't change (after timeout), fallback to href
+                let went = false;
+                const onPop = () => {
+                    went = true;
+                    window.removeEventListener('popstate', onPop);
+                };
+                window.addEventListener('popstate', onPop);
+
+                // do the back navigation
+                try {
+                    history.back();
+                } catch (err) {
+                    went = false;
+                }
+
+                // after short delay, if nothing happened, go to previous URL (fallback)
+                setTimeout(() => {
+                    window.removeEventListener('popstate', onPop);
+                    if (!went) {
+                        const href = btn.getAttribute('href');
+                        if (href && href !== window.location.href) {
+                            window.location.href = href;
+                        } else {
+                            // agar hammasi muvaffaqiyatsiz bo'lsa, xohlasangiz route orqali defaultga yuborish:
+                            // window.location.href = "{{ route('departments.users', $department ?? 1) }}";
+                            // yoki shunchaki unlock:
+                            btn.removeAttribute('aria-disabled');
+                            btn.style.opacity = '';
+                        }
+                    }
+                }, 250); // 250ms yetarli; xohlasangiz oshiring
+            });
+        });
+    </script>
+
 
     <div class="layout">
 
         <!-- SIDEBAR -->
         <aside class="sidebar">
-            <div class="brand">{{ config('app.name', 'Postix AI') }}</div>
+    <!-- Brand / logo -->
+    <div class="brand">{{ config('app.name', 'Postix AI') }}</div>
 
-            <nav class="nav flex-column mb-3">
-                <a href="{{ route('departments.dashboard', $department) }}"
-                    class="nav-link {{ request()->routeIs('departments.dashboard') ? 'active' : '' }}">
-                    🏠 {{ __('messages.admin.dashboard') }}
-                </a>
+    <!-- Navigation links -->
+    <nav class="nav flex-column mb-3">
+        <a href="{{ route('departments.dashboard', $department) }}"
+           class="nav-link {{ request()->routeIs('departments.dashboard') ? 'active' : '' }}">
+            🏠 {{ __('messages.admin.dashboard') }}
+        </a>
 
-                <a href="{{ route('departments.users', $department) }}"
-                    class="nav-link {{ request()->routeIs('departments.users') ? 'active' : '' }}">
-                    👤 {{ __('messages.admin.users') }}
-                </a>
+        <a href="{{ route('departments.users', $department) }}"
+           class="nav-link {{ request()->routeIs('departments.users') ? 'active' : '' }}">
+            👤 {{ __('messages.admin.users') }}
+        </a>
 
-                <a href="{{ route('departments.operations', $department) }}"
-                    class="nav-link {{ request()->routeIs('departments.operations') ? 'active' : '' }}">
-                    📊 {{ __('messages.admin.operations') }}
-                </a>
+        <a href="{{ route('departments.operations', $department) }}"
+           class="nav-link {{ request()->routeIs('departments.operations') ? 'active' : '' }}">
+            📊 {{ __('messages.admin.operations') }}
+        </a>
 
-                {{-- <a href="{{ route('settings.index') ?? '#' }}" class="nav-link @if (request()->routeIs('settings.*')) active @endif">⚙️ {{ __('layout.menu.settings') }}</a> --}}
-            </nav>
+        {{-- Agar kerak bo'lsa sozlamalar linki --}}
+        {{-- <a href="{{ route('settings.index') ?? '#' }}" class="nav-link @if (request()->routeIs('settings.*')) active @endif">
+            ⚙️ {{ __('layout.menu.settings') }}
+        </a> --}}
+    </nav>
+</aside>
 
-
-        </aside>
 
         <!-- MAIN CONTENT -->
         <main class="content">
-            <div class="topbar">
-                <div>
-                    <h4 class="mb-0">@yield('page-title', __('messages.layout.page_title'))</h4>
-                    <div class="text-muted small">@yield('page-subtitle')</div>
+            <div class="topbar layout-topbar d-flex align-items-center gap-2">
+
+
+                <div class="d-flex align-items-center">
+                    @hasSection('show-back')
+                        <a id="backBtn" href="{{ url()->previous() }}" class="back-btn me-2"
+                            aria-label="Orqaga qaytish" title="Orqaga qaytish" role="button">
+                            <!-- oddiy belgi, xohlasangiz SVG qo‘shing -->
+                            ←{{ __('messages.users.back_to_list') }}
+                        </a>
+                    @endif
+
+                    <div>
+                        <h4 class="mb-0">@yield('page-title', __('messages.layout.page_title'))</h4>
+                        <div class="text-muted small">@yield('page-subtitle')</div>
+                    </div>
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
@@ -551,9 +764,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     <script>
         /*
-                          Theme toggle: stores 'light'|'dark' in localStorage under key 'app_theme'
-                          Usage: body.classList.toggle('light', true) -> light theme
-                        */
+                                  Theme toggle: stores 'light'|'dark' in localStorage under key 'app_theme'
+                                  Usage: body.classList.toggle('light', true) -> light theme
+                                */
         (function() {
             const THEME_KEY = 'app_theme';
             const body = document.body;

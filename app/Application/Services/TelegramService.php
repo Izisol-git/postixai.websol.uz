@@ -30,20 +30,19 @@ class TelegramService
 
         $keyboard
             ->row([
-
-                Keyboard::button('📱 Telefonlarim'),
-            ])
-            ->row([
                 Keyboard::button('📂 Cataloglar'),
                 Keyboard::button('📊 Yuborilgan xabarlar tarixi'),
             ])
             ->row([
-                Keyboard::button('Qollanma'),
-                Keyboard::button('Oferta'),
+                Keyboard::button('📘 Qo‘llanma'),
+                Keyboard::button('💼 Oferta'),
+            ])
+            ->row([
             ]);
         if ($hasActivePhone) {
             $keyboard->row([
-                Keyboard::button('Habar yuborish'),
+                Keyboard::button('📱 Telefonlarim'),
+                Keyboard::button('🚀 Habar yuborish'),
             ]);
         }
 
@@ -94,7 +93,7 @@ class TelegramService
         /** 🔙 Cancel */
         $keyboard->row([
             Keyboard::inlineButton([
-                'text' => '❌ Bekor qilish',
+                'text' => 'Menyuga qaytish',
                 'callback_data' => 'cancel_catalog'
             ])
         ]);
@@ -177,7 +176,7 @@ class TelegramService
         // Bekor qilish tugmasi
         $keyboard->row([
             Keyboard::inlineButton([
-                'text' => '❌ Catalog tanlashni bekor qilish',
+                'text' => '⬅️Orqaga qaytish',
                 'callback_data' => 'cancel_catalog'
             ])
         ]);
@@ -240,7 +239,7 @@ class TelegramService
 
         $keyboard->row([
             Keyboard::inlineButton([
-                'text' => '❌ Catalog tanlashni bekor qilish',
+                'text' => '⬅️Orqaga qaytish',
                 'callback_data' => 'cancel_catalog'
             ])
         ]);
@@ -257,10 +256,10 @@ class TelegramService
                 ->setResizeKeyboard(true)
                 ->setOneTimeKeyboard(true)
                 ->row([
-                    Keyboard::button([
-                        'text' => '📱 Telefon raqamini yuborish',
-                        'request_contact' => true,
-                    ])
+                    Keyboard::inlineButton([
+                        'text' => 'Menyuga qaytish',
+                        'callback_data' => 'cancel_auth',
+                    ]),
                 ]);
         } else {
             // Telefonlar mavjud bo'lsa, har biri alohida qatorga
@@ -276,7 +275,7 @@ class TelegramService
             // Bekor qilish tugmasi
             $keyboard->row([
                 Keyboard::inlineButton([
-                    'text' => '❌ Tanlashni bekor qilish',
+                    'text' => 'Menyuga qaytish',
                     'callback_data' => 'cancel_auth'
                 ])
             ]);
@@ -345,38 +344,65 @@ class TelegramService
 
         return $keyboard;
     }
-    public function buildGroupKeyboard(User $user)
+    public function buildGroupKeyboard(User $user, int $page = 1)
     {
-        // Foydalanuvchining telefonlari
+        $perPage = 10;
+
         $phoneIds = $user->phones()->pluck('id')->toArray();
 
-        // Guruhlarni olish, eng yangi oxirgisini olish uchun latest va take
-        $groups = MessageGroup::withCount('messages')
-            ->with(['messages' => function ($q) {
-                $q->latest();
-            }])
-            ->whereIn('user_phone_id', $phoneIds)
-            ->latest() // eng yangi birinchi
-            ->take(10) // oxirgi 10 ta
-            ->get();
+        // jami guruhlar soni (oyoq: bu tez)
+        $total = MessageGroup::whereIn('user_phone_id', $phoneIds)->count();
+        $lastPage = (int) max(1, ceil($total / $perPage));
+        $page = max(1, min($page, $lastPage));
+
+        // Subquery to get latest message text per group (optional)
+        $latestMsgSub = TelegramMessage::select('message_text')
+            ->whereColumn('message_group_id', 'message_groups.id')
+            ->latest()
+            ->limit(1);
+
+        // Oqilona select — faqat keraklilarini olamiz
+        $groups = MessageGroup::whereIn('user_phone_id', $phoneIds)
+            ->orderBy('updated_at', 'desc') // yoki needed order
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->withCount('messages')
+            ->addSelect(['latest_message_text' => $latestMsgSub]) // qo'shimcha ustun
+            ->get(['id', 'message_text', 'updated_at']); // zarur ustunlar
 
         $keyboard = (new Keyboard)->inline();
 
-        foreach ($groups as $group) {
-            $text = $group->message_text ?? 'Xabar yo‘q';
+        foreach ($groups as $index => $group) {
+            $text = $group->latest_message_text ?? $group->message_text ?? 'Xabar yo‘q';
+            $num = (($page - 1) * $perPage + $index + 1);
 
             $keyboard->row([
                 Keyboard::inlineButton([
-                    'text' => mb_strimwidth($text, 0, 30, '...') . ' — ' . $group->messages_count,
-                    'callback_data' => 'group_select_' . $group->id
+                    'text' => $num . '. ' . mb_strimwidth($text, 0, 25, '...') . ' — ' . $group->messages_count,
+                    'callback_data' => 'group_select_' . $group->id,
                 ])
             ]);
         }
 
-        // Pagination olib tashlandi
-        // $navButtons = [];
+        // Navigation
+        $navButtons = [];
+        if ($page > 1) {
+            $navButtons[] = Keyboard::inlineButton([
+                'text' => '⬅ Previous',
+                'callback_data' => 'group_page_' . ($page - 1),
+            ]);
+        }
+        if ($page < $lastPage) {
+            $navButtons[] = Keyboard::inlineButton([
+                'text' => 'Next ➡',
+                'callback_data' => 'group_page_' . ($page + 1),
+            ]);
+        }
+        if ($navButtons) {
+            $keyboard->row($navButtons);
+        }
 
-        // Yopish tugmasi
+        // Cancel
         $keyboard->row([
             Keyboard::inlineButton([
                 'text' => 'Menyuga qaytish',
@@ -400,9 +426,7 @@ class TelegramService
 
         $messages = $group->messages;
 
-        /**
-         * 1️⃣ ASOSIY MA’LUMOTLAR (1-xabar)
-         */
+
         $headerText  = "📊 Guruh ma'lumotlari\n\n";
         $headerText .= "📌 Guruh ID: {$group->id}\n";
         $headerText .= "🕒 Boshlangan: " . optional($messages->min('send_at'))->format('Y-m-d H:i') . "\n";
@@ -440,9 +464,8 @@ class TelegramService
         }
         $replyKeyboard->row([
             Keyboard::button("📊 Yuborilgan xabarlar tarixi"),
-            Keyboard::button("📂 Cataloglar")
         ])->row([
-            Keyboard::button("Menyu")
+            Keyboard::button("Menyuga qaytish")
         ]);
 
         $this->tg(fn() => $this->telegram->sendMessage([
@@ -553,14 +576,27 @@ class TelegramService
                 $text .= $explanation . "\n\n";
             }
 
-            $this->telegram->sendMessage([
-                'chat_id' => $chatId,
-                'text' => trim($text)
-            ]);
+            // $this->telegram->sendMessage([
+            //     'chat_id' => $chatId,
+            //     'text' => trim($text)
+            // ]);
+    $this->sendLongMessage($chatId, $text);
 
             $page++;
         }
     }
+    private function sendLongMessage(int $chatId, string $text, int $limit = 4000)
+    {
+        $chunks = mb_str_split($text, $limit);
+
+        foreach ($chunks as $chunk) {
+            $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => trim($chunk)
+            ]);
+        }
+    }
+
     /**
      * Simple peer normalizer: t.me links -> @username, tg://resolve -> @username, trim, remove trailing slashes
      */
@@ -679,7 +715,7 @@ class TelegramService
 
         $this->telegram->sendMessage([
             'chat_id' => $chatId,
-            'text' => 'Bekor qilindi.',
+            'text' => 'Bosh menyu:',
             'reply_markup' => $this->mainMenuWithHistoryKeyboard($hasActivePhone)
         ]));
 

@@ -33,6 +33,7 @@ class User extends Authenticatable
         'password',
         'state',
         'value',
+        'created_by',
     ];
 
     /**
@@ -117,4 +118,15 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserMinuteAccess::class, 'user_id', 'id');
     }
+
+    public function creator()
+{
+    return $this->belongsTo(User::class, 'created_by');
+}
+
+public function createdUsers()
+{
+    return $this->hasMany(User::class, 'created_by');
+}
+
 }

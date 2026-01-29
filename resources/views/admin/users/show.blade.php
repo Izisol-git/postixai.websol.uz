@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('show-back', true)
 @section('title', $user->name . ' — ' . __('messages.users.title'))
 @section('page-title', $user->name)
 
@@ -152,7 +152,7 @@
         .modal-backdrop-custom {
             position: fixed;
             inset: 0;
-            background: rgba(2,6,23,0.6);
+            background: rgba(2, 6, 23, 0.6);
             display: none;
             align-items: center;
             justify-content: center;
@@ -165,8 +165,8 @@
             padding: 18px;
             width: 420px;
             max-width: calc(100% - 32px);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.03);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.03);
             color: var(--text);
         }
 
@@ -176,14 +176,14 @@
         }
 
         .modal-actions {
-            display:flex;
-            justify-content:flex-end;
-            gap:8px;
-            margin-top:12px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
         }
     </style>
 
-<div id="toast-container" style="position:fixed; top:60px; right:20px; z-index:99999;"></div>
+    <div id="toast-container" style="position:fixed; top:60px; right:20px; z-index:99999;"></div>
 
     <div class="container" style="max-width:1000px;">
         @if (session('success'))
@@ -249,15 +249,19 @@
 
                     </div>
 
-                    <div class="mt-2 d-flex gap-2">
-                        {{-- Ban / Unban button --}}
-                        @php $isBanned = $user->ban?->active ?? false; @endphp
-                        <button type="button" id="user-ban-btn-{{ $user->id }}" class="btn btn-sm w-100 user-ban-btn"
-                            style="background: {{ $isBanned ? '#ef4444' : '#6b7280' }}; color:#fff;"
-                            data-user-id="{{ $user->id }}" data-banned="{{ $isBanned ? '1' : '0' }}">
-                            {{ $isBanned ? __('messages.admin.unban') ?? 'Unban' : __('messages.admin.ban') ?? 'Ban' }}
-                        </button>
-                    </div>
+                    @if ($canBan)
+                        <div class="mt-2 d-flex gap-2">
+                            {{-- Ban / Unban button --}}
+                            @php $isBanned = $user->ban?->active ?? false; @endphp
+                            <button type="button" id="user-ban-btn-{{ $user->id }}"
+                                class="btn btn-sm w-100 user-ban-btn"
+                                style="background: {{ $isBanned ? '#ef4444' : '#6b7280' }}; color:#fff;"
+                                data-user-id="{{ $user->id }}" data-banned="{{ $isBanned ? '1' : '0' }}">
+                                {{ $isBanned ? __('messages.admin.unban') ?? 'Unban' : __('messages.admin.ban') ?? 'Ban' }}
+                            </button>
+                        </div>
+                    @endif
+
 
                     <div class="mt-2 text-muted small">
                         {{ __('messages.users.registered_at') ?? 'Registered' }}: <span
@@ -284,41 +288,57 @@
                                 <input name="name" class="form-control bg-transparent text-light"
                                     value="{{ old('name', $user->name) }}" required>
                             </div>
-                            @if($user->role->name == 'admin')
+
+                            <div class="col-md-6">
+                                <label class="form-label">{{ __('messages.users.role') ?? 'Role' }}</label>
+                                <select name="role_id" class="form-select">
+                                    @foreach ($roles as $role)
+                                        <option value="{{ $role->id }}"
+                                            {{ $user->role_id == $role->id ? 'selected' : '' }}>
+                                            {{ ucfirst($role->name) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
                             <div class="col-md-6">
                                 <label class="form-label">{{ __('messages.users.email') ?? 'Email' }}</label>
                                 <input name="email" class="form-control bg-transparent text-light"
                                     value="{{ old('email', $user->email) }}">
                             </div>
-                            @endif
 
-                            <div class="col-md-6">
+                            {{-- <div class="col-md-6">
                                 <label class="form-label">{{ __('messages.users.telegram_id') ?? 'Telegram ID' }}</label>
                                 <input name="telegram_id" class="form-control bg-transparent text-light"
                                     value="{{ old('telegram_id', $user->telegram_id) }}">
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label">{{ __('messages.users.avatar') ?? 'Avatar' }}</label>
-                                <input type="file" name="avatar" accept="image/*" class="form-control" id="avatarInput">
-                                <div class="form-check mt-2">
-                                    <input class="form-check-input" type="checkbox" name="remove_avatar" value="1"
-                                        id="removeAvatar">
-                                    <label class="form-check-label small"
-                                        for="removeAvatar">{{ __('messages.users.remove_avatar') ?? 'Remove current avatar' }}</label>
-                                </div>
-                            </div>
+                            </div> --}}
 
 
-                            @if($user->role->name == 'admin')
+
+
+                            {{-- @if ($user->role->name == 'admin') --}}
 
                             <div class="col-md-6">
                                 <label class="form-label">{{ __('messages.users.new_password') ?? 'New password' }}</label>
                                 <input type="password" name="password" class="form-control bg-transparent text-light"
-                                    placeholder="{{ __('messages.users.leave_empty') ?? 'Leave empty to keep' }}" autocomplete="new-password">
+                                    placeholder="{{ __('messages.users.leave_empty') ?? 'Leave empty to keep' }}"
+                                    autocomplete="new-password">
                             </div>
-                            @endif
+                            {{-- @endif --}}
+
                         </div>
+
+
+                        <div class="col-md-6">
+                            <label class="form-label">{{ __('messages.users.avatar') ?? 'Avatar' }}</label>
+                            <input type="file" name="avatar" accept="image/*" class="form-control" id="avatarInput">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="remove_avatar" value="1"
+                                    id="removeAvatar">
+                                <label class="form-check-label small"
+                                    for="removeAvatar">{{ __('messages.users.remove_avatar') ?? 'Remove current avatar' }}</label>
+                            </div>
+                        </div>
+
 
                         <div class="mt-3 text-end">
                             <button
@@ -335,7 +355,7 @@
                     </div>
 
                     <div id="phonesList" class="mb-3">
-                        @foreach ($user->phones as $phone)
+                        @foreach ($user->phones->where('is_active', true) as $phone)
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
                                     <strong>{{ $phone->phone }}</strong>
@@ -343,17 +363,16 @@
                                         {{ $phone->is_active ? __('messages.users.active') : __('messages.users.inactive') }}
                                     </div>
                                 </div>
-                                @if($phone->is_active)
-                                <div class="d-flex gap-2 align-items-center">
-                                    {{-- Replace inline confirm with modal trigger --}}
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-danger delete-phone-btn"
-                                        data-route="{{ route('telegram.logout', ['user_id' => $user->id, 'phone' => $phone->phone]) }}"
-                                        data-phone="{{ $phone->phone }}">
-                                        {{ __('messages.users.delete_phone') ?? 'Delete' }}
-                                    </button>
-                                </div>
-                                @endif  
+                                @if ($phone->is_active)
+                                    <div class="d-flex gap-2 align-items-center">
+                                        {{-- Replace inline confirm with modal trigger --}}
+                                        <button type="button" class="btn btn-sm btn-outline-danger delete-phone-btn"
+                                            data-route="{{ route('telegram.logout', ['user_id' => $user->id, 'phone' => $phone->phone]) }}"
+                                            data-phone="{{ $phone->phone }}">
+                                            {{ __('messages.users.delete_phone') ?? 'Delete' }}
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -402,12 +421,14 @@
             </div>
 
             <div class="modal-actions">
-                <button type="button" id="modalCancel" class="btn btn-secondary">{{ __('messages.admin.cancel') ?? 'Cancel' }}</button>
+                <button type="button" id="modalCancel"
+                    class="btn btn-secondary">{{ __('messages.admin.cancel') ?? 'Cancel' }}</button>
 
                 <form id="modalDeleteForm" method="POST" action="">
                     @csrf
                     {{-- If your route needs a method override, add here, e.g. @method('DELETE') --}}
-                    <button type="submit" class="btn btn-danger">{{ __('messages.users.delete_phone') ?? 'Delete' }}</button>
+                    <button type="submit"
+                        class="btn btn-danger">{{ __('messages.users.delete_phone') ?? 'Delete' }}</button>
                 </form>
             </div>
         </div>
@@ -425,7 +446,12 @@
                 if (!container) {
                     container = document.createElement('div');
                     container.id = 'toast-container';
-                    Object.assign(container.style, { position:'fixed', top:'20px', right:'20px', zIndex: 99999 });
+                    Object.assign(container.style, {
+                        position: 'fixed',
+                        top: '20px',
+                        right: '20px',
+                        zIndex: 99999
+                    });
                     document.body.appendChild(container);
                 }
                 const t = document.createElement('div');
@@ -465,13 +491,24 @@
                     });
 
                     let json = {};
-                    try { json = await res.json(); } catch (e) { json = {}; }
+                    try {
+                        json = await res.json();
+                    } catch (e) {
+                        json = {};
+                    }
 
-                    const ok = res.ok && (String(json.status).toLowerCase() === 'success' || json.success === true || json.data);
-                    return { ok, json };
+                    const ok = res.ok && (String(json.status).toLowerCase() === 'success' || json.success ===
+                        true || json.data);
+                    return {
+                        ok,
+                        json
+                    };
                 } catch (err) {
                     console.error(err);
-                    return { ok: false, json: null };
+                    return {
+                        ok: false,
+                        json: null
+                    };
                 }
             }
 
@@ -495,11 +532,14 @@
                         const raw = result.json;
                         // normalize: server might return { status, message, data: { is_banned } }
                         const data = raw.data ?? raw;
-                        const isNowBanned = typeof data.is_banned !== 'undefined' ? !!data.is_banned : !currentlyBanned;
+                        const isNowBanned = typeof data.is_banned !== 'undefined' ? !!data
+                            .is_banned : !currentlyBanned;
 
                         // update dataset + text + color
                         this.dataset.banned = isNowBanned ? '1' : '0';
-                        this.textContent = isNowBanned ? '{{ __('messages.admin.unban') ?? 'Unban' }}' : '{{ __('messages.admin.ban') ?? 'Ban' }}';
+                        this.textContent = isNowBanned ?
+                            '{{ __('messages.admin.unban') ?? 'Unban' }}' :
+                            '{{ __('messages.admin.ban') ?? 'Ban' }}';
                         this.style.background = isNowBanned ? '#ef4444' : '#6b7280';
 
                         // optionally update counts if provided
@@ -513,10 +553,17 @@
                         }
 
                         // show server message (if present) otherwise generic
-                        showToast((raw.message && String(raw.message).length) ? raw.message : (isNowBanned ? '{{ __("messages.ban.banned_now") ?? "Banned" }}' : '{{ __("messages.ban.unbanned") ?? "Unbanned" }}'), 'success');
+                        showToast((raw.message && String(raw.message).length) ? raw.message : (
+                                isNowBanned ?
+                                '{{ __('messages.ban.banned_now') ?? 'Banned' }}' :
+                                '{{ __('messages.ban.unbanned') ?? 'Unbanned' }}'),
+                            'success');
                     } else {
                         // failure
-                        const msg = (result.json && (result.json.message || (result.json.errors ? (Object.values(result.json.errors).flat().join(', ')) : null))) || '{{ __("messages.admin.server_error") ?? "Server error" }}';
+                        const msg = (result.json && (result.json.message || (result.json
+                                .errors ? (Object.values(result.json.errors).flat()
+                                    .join(', ')) : null))) ||
+                            '{{ __('messages.admin.server_error') ?? 'Server error' }}';
                         showToast(msg, 'error');
                     }
 
@@ -580,7 +627,8 @@
                     phoneError.textContent = '';
                     const phone = phoneInput.value.trim();
                     if (!phone) {
-                        phoneError.textContent = '{{ __('messages.users.phone_required') ?? 'Phone required' }}';
+                        phoneError.textContent =
+                            '{{ __('messages.users.phone_required') ?? 'Phone required' }}';
                         phoneError.classList.remove('d-none');
                         return;
                     }
@@ -614,13 +662,15 @@
                         })
                         .then(data => {
                             if (data.status === 'sms_sent' || data.status === 'sent') {
-                                showToast(data.message || '{{ __('messages.users.sms_sent') ?? 'SMS sent' }}',
+                                showToast(data.message ||
+                                    '{{ __('messages.users.sms_sent') ?? 'SMS sent' }}',
                                     'success');
                                 stepPhone.classList.add('d-none');
                                 stepCode.classList.remove('d-none');
                             } else {
                                 showToast(data.message ||
-                                    '{{ __('messages.users.sms_failed') ?? 'Failed to send' }}', 'error');
+                                    '{{ __('messages.users.sms_failed') ?? 'Failed to send' }}',
+                                    'error');
                             }
                         })
                         .catch(err => console.error(err));
@@ -658,8 +708,10 @@
                             if (!res.ok) {
                                 const json = await res.json().catch(() => null);
                                 if (json && json.errors) {
-                                    if (json.errors.code) codeError.textContent = json.errors.code.join(', ');
-                                    if (json.errors.phone) codeError.textContent += ' ' + json.errors.phone.join(', ');
+                                    if (json.errors.code) codeError.textContent = json.errors
+                                        .code.join(', ');
+                                    if (json.errors.phone) codeError.textContent += ' ' + json
+                                        .errors.phone.join(', ');
                                     codeError.classList.remove('d-none');
                                 } else {
                                     showToast(json?.message || 'Server error', 'error');
@@ -670,7 +722,8 @@
                         })
                         .then(data => {
                             if (data.status === 'verified') {
-                                showToast(data.message || '{{ __('messages.users.verified') ?? 'Verified' }}',
+                                showToast(data.message ||
+                                    '{{ __('messages.users.verified') ?? 'Verified' }}',
                                     'success');
                                 setTimeout(() => location.reload(), 800);
                             } else {
@@ -699,7 +752,9 @@
                 function openModal(route, phone) {
                     modalForm.setAttribute('action', route);
                     // put friendly phone text in modal
-                    modalBody.textContent = "{{ __('messages.users.phone_delete_confirm') ?? 'Are you sure you want to delete this phone?' }}" + " — " + (phone || '');
+                    modalBody.textContent =
+                        "{{ __('messages.users.phone_delete_confirm') ?? 'Are you sure you want to delete this phone?' }}" +
+                        " — " + (phone || '');
                     backdrop.style.display = 'flex';
                     backdrop.setAttribute('aria-hidden', 'false');
                 }
