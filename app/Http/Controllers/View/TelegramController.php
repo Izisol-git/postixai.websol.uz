@@ -66,32 +66,20 @@ class TelegramController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
     }
-    public function canUsePhone(string $phone, ?int $currentUserId = null): bool
+    public function canUsePhone(string $phone): bool
 {
-    $userPhone = UserPhone::where('phone', $phone)->first();
-
-    if (!$userPhone) {
-        return true;
-    }
-
-    if ($userPhone->is_active) {
-        return false;
-    }
-
-    if ($userPhone->telegram_user_id) {
-        $owner = User::where('telegram_id', $userPhone->telegram_user_id)->first();
-
-        if ($owner) {
-            if ($currentUserId !== null && (int)$owner->id === (int)$currentUserId) {
-                return true;
-            }
-            return false;
-        }
-    }
-
-    // boshqa holatlarda ishlatish mumkin
-    return true;
+    return !UserPhone::where('phone', $phone)
+        ->where(function ($q) {
+            $q->where('is_active', true)
+              ->orWhereIn('telegram_user_id', function ($sub) {
+                  $sub->select('telegram_id')
+                      ->from('users')
+                      ->whereNotNull('telegram_id');
+              });
+        })
+        ->exists();
 }
+
     public function sendCode(Request $request)
     {
         $request->validate([
@@ -127,10 +115,10 @@ class TelegramController extends Controller
     }
     public function cancel(MessageGroup $group): RedirectResponse
     {
-        if (!in_array($group->status, ['scheduled', 'pending'])) {
+        if (in_array($group->status, ['canceled'])) {
             return redirect()
                 ->back()
-                ->with('error', "Operatsiya #{$group->id} ni bekor qilib bo'lmaydi. Faqat 'scheduled' yoki 'pending' holatidagi operatsiyalarni bekor qilish mumkin.");
+                ->with('error', __('messages.group.cannot_cancel', ['id' => $group->id]));
         }
         $group->update(['status' => 'canceled']);
 
@@ -139,7 +127,7 @@ class TelegramController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', "Operatsiya #{$group->id} bekor qilish jarayoniga yuborildi.");
+            ->with('success', __('messages.group.canceled', ['id' => $group->id]));
     }
     /**
      * Operatsiyani yangilash (REFRESH)

@@ -28,13 +28,16 @@
         <div id="stepPhone">
           <label class="form-label">{{ __('messages.users.name') ?? 'Name' }}</label>
           <input id="name" type="text" name="name" class="form-control mb-2" placeholder="{{ __('messages.users.name') ?? 'Name' }}" required>
-<div id="nameError" class="text-danger small d-none"></div>
+          <div id="nameError" class="text-danger small d-none"></div>
+
           <label class="form-label">{{ __('messages.users.email') ?? 'Login (Email)' }}</label>
           <input id="login" type="text" name="login" class="form-control mb-2" placeholder="{{ __('messages.users.email') ?? 'Login (not required to be real email)' }}" required>
-<div id="loginError" class="text-danger small d-none"></div>
+          <div id="loginError" class="text-danger small d-none"></div>
+
           <label class="form-label">{{ __('messages.users.new_password') ?? 'Password' }}</label>
           <input id="password" type="password" name="password" class="form-control mb-2" placeholder="{{ __('messages.users.leave_empty') ?? 'Leave empty to keep' }}" required>
-<div id="passwordError" class="text-danger small d-none"></div>
+          <div id="passwordError" class="text-danger small d-none"></div>
+
           @if(isset($roles) && $roles->count())
             <label class="form-label">{{ __('messages.users.role') ?? 'Role' }}</label>
             <select id="role" name="role" class="form-select mb-2">
@@ -42,12 +45,15 @@
                 <option value="{{ $role->id }}">{{ ucfirst($role->name) }}</option>
               @endforeach
             </select>
+            <div id="roleError" class="text-danger small d-none"></div>
           @endif
-<div id="roleError" class="text-danger small d-none"></div>
+
           <label class="form-label">{{ __('messages.users.avatar') ?? 'Avatar' }}</label>
           <input id="avatar" type="file" name="avatar" accept="image/*" class="form-control mb-2">
-<div id="avatarError" class="text-danger small d-none"></div>
+          <div id="avatarError" class="text-danger small d-none"></div>
+
           <label class="form-label">{{ __('messages.telegram.phone_label') ?? 'Phone Number' }}</label>
+          <!-- pattern/title removed as requested; backend will validate format -->
           <input id="phone" type="text" class="form-control mb-2" autocomplete="tel" placeholder="{{ __('messages.telegram.phone_placeholder') ?? 'Enter users phone number' }}" value="" >
           <div id="phoneError" class="text-danger small d-none"></div>
 
@@ -103,16 +109,42 @@
   const csrfMeta = document.querySelector('meta[name="csrf-token"]');
   const csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
-  // localized messages rendered server-side
-  const MSG = {
-    required_name: {!! json_encode(__('validation.required', ['attribute' => __('validation.attributes.name')])) !!},
-    required_login: {!! json_encode(__('validation.required', ['attribute' => __('validation.attributes.login')])) !!},
-    required_password: {!! json_encode(__('validation.required', ['attribute' => __('validation.attributes.password')])) !!},
-    required_role: {!! json_encode(__('validation.required', ['attribute' => __('validation.attributes.role_id')])) !!},
-    required_phone: {!! json_encode(__('validation.required', ['attribute' => __('validation.attributes.phone')])) !!},
-    phone_regex: {!! json_encode(trans('validation.custom.phone.regex')) !!},
-    invalid_file: {!! json_encode(__('validation.uploaded') ) !!},
+  /**
+   * ATTR and MSG are populated from Laravel's validation language files.
+   * - ATTR uses validation.attributes.* fallbacks
+   * - MSG uses validation.required and validation.custom.phone.regex (if present)
+   *
+   * Server-side: ensure resources/lang/{locale}/validation.php contains attributes and messages.
+   */
+
+  const ATTR = {
+    name: @json(__('validation.attributes.name') ?? 'name'),
+    login: @json(__('validation.attributes.email') ?? __('validation.attributes.login') ?? 'login'),
+    password: @json(__('validation.attributes.password') ?? 'password'),
+    role: @json(__('validation.attributes.role_id') ?? __('validation.attributes.role') ?? 'role'),
+    phone: @json(__('validation.attributes.phone') ?? 'phone'),
+    avatar: @json(__('validation.attributes.avatar') ?? 'avatar'),
   };
+
+  const MSG = {
+    required: @json(__('validation.required', ['attribute' => ':attribute'])),
+    phone_regex: @json(__('validation.custom.phone.regex') ?? __('validation.regex') ?? 'Phone format invalid'),
+    invalid_file: @json(__('validation.uploaded') ?? 'The uploaded file is invalid.'),
+  };
+
+  function formatMessage(template, replacements){
+    let out = template || '';
+    if (!replacements) return out;
+    Object.keys(replacements).forEach(k => {
+      out = out.split(k).join(replacements[k]);
+    });
+    return out;
+  }
+
+  function requiredMsgFor(fieldKey){
+    const attr = ATTR[fieldKey] || fieldKey;
+    return formatMessage(MSG.required, {':attribute': attr});
+  }
 
   function showErrorElem(id, msg) {
     const el = document.getElementById(id);
@@ -128,42 +160,6 @@
   }
   function clearAllErrors() {
     ['nameError','loginError','passwordError','roleError','avatarError','phoneError','codeError'].forEach(clearErrorElem);
-  }
-
-  function validateBeforeSend() {
-    clearAllErrors();
-    const name = document.getElementById('name')?.value.trim() || '';
-    const login = document.getElementById('login')?.value.trim() || '';
-    const password = document.getElementById('password')?.value.trim() || '';
-    const role = document.getElementById('role')?.value || '';
-    const avatarEl = document.getElementById('avatar');
-    const phone = document.getElementById('phone')?.value.trim() || '';
-
-    // required checks
-    if (!name) { showErrorElem('nameError', MSG.required_name); document.getElementById('name').focus(); return false; }
-    if (!login) { showErrorElem('loginError', MSG.required_login); document.getElementById('login').focus(); return false; }
-    if (!password) { showErrorElem('passwordError', MSG.required_password); document.getElementById('password').focus(); return false; }
-    if (!role) { showErrorElem('roleError', MSG.required_role); document.getElementById('role').focus(); return false; }
-    if (!phone) { showErrorElem('phoneError', MSG.required_phone); document.getElementById('phone').focus(); return false; }
-
-    // phone format quick client-side (uz format) — keep simple: +998XXXXXXXXX or digits
-    const normalized = phone.replace(/[^0-9+]/g,'');
-    if (!/^\+?998\d{9}$/.test(normalized)) {
-      showErrorElem('phoneError', MSG.phone_regex || 'Phone format invalid');
-      document.getElementById('phone').focus(); return false;
-    }
-
-    // optional: avatar size/type check (example: max 5MB)
-    if (avatarEl && avatarEl.files && avatarEl.files[0]) {
-      const file = avatarEl.files[0];
-      const maxBytes = 5 * 1024 * 1024;
-      if (file.size > maxBytes) {
-        showErrorElem('avatarError', MSG.invalid_file);
-        avatarEl.focus(); return false;
-      }
-    }
-
-    return true;
   }
 
   function show(el, msg, hideAfter=3500){
@@ -194,6 +190,42 @@
       el.classList.add('locked-field');
       el.setAttribute('aria-readonly', 'true');
     });
+  }
+
+  /**
+   * Client-side minimal validation:
+   * - required checks use Laravel messages
+   * - detailed phone format validation removed (backend will validate)
+   */
+  function validateBeforeSend() {
+    clearAllErrors();
+    const name = document.getElementById('name')?.value.trim() || '';
+    const login = document.getElementById('login')?.value.trim() || '';
+    const password = document.getElementById('password')?.value.trim() || '';
+    const role = document.getElementById('role')?.value || '';
+    const avatarEl = document.getElementById('avatar');
+    const phone = document.getElementById('phone')?.value.trim() || '';
+
+    // required checks using Laravel messages
+    if (!name) { showErrorElem('nameError', requiredMsgFor('name')); document.getElementById('name').focus(); return false; }
+    if (!login) { showErrorElem('loginError', requiredMsgFor('login')); document.getElementById('login').focus(); return false; }
+    if (!password) { showErrorElem('passwordError', requiredMsgFor('password')); document.getElementById('password').focus(); return false; }
+    if (!role) { showErrorElem('roleError', requiredMsgFor('role')); document.getElementById('role').focus(); return false; }
+    if (!phone) { showErrorElem('phoneError', requiredMsgFor('phone')); document.getElementById('phone').focus(); return false; }
+
+    // Note: phone format / regex check intentionally omitted — backend will validate and return precise message.
+
+    // optional: avatar size/type check (example: max 5MB)
+    if (avatarEl && avatarEl.files && avatarEl.files[0]) {
+      const file = avatarEl.files[0];
+      const maxBytes = 5 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        showErrorElem('avatarError', MSG.invalid_file);
+        avatarEl.focus(); return false;
+      }
+    }
+
+    return true;
   }
 
   document.getElementById('btnPhone').addEventListener('click', function(){
@@ -247,6 +279,7 @@
               showErrorElem(elId, msgs);
             });
           } else {
+            // If server returned a JSON message not in errors, show it
             showError(json?.message || 'Xatolik yuz berdi');
           }
         } else {
@@ -295,14 +328,16 @@
 
         document.getElementById('phoneHidden').value = phone;
         const loginValue = document.getElementById('login')?.value || '';
-document.getElementById('loginHidden').value = loginValue;
+        document.getElementById('loginHidden').value = loginValue;
         document.getElementById('stepCode').classList.remove('d-none');
         document.getElementById('code').focus();
       } else {
         showError(data.message || 'Xato');
       }
     })
-    .catch(err => console.error(err));
+    .catch(err => {
+      console.error(err);
+    });
   });
 
   // Enter key usability
@@ -315,6 +350,5 @@ document.getElementById('loginHidden').value = loginValue;
 
 })();
 </script>
-
 
 @endsection

@@ -33,7 +33,9 @@ class UserController extends Controller
             'role',
             'department',
         ])->findOrFail($id);
-
+        if ($user->department_id !== $request->user()->department_id ) {
+             abort(403, __('messages.users.access_denied'));   
+        }
         $department = $user->department;
 
         $operationsCount = $user->phones
@@ -165,26 +167,19 @@ class UserController extends Controller
         return redirect()->route('admin.users.show', $user->id)->with('success', __('messages.users.phone_deleted') ?? 'Phone deleted');
     }
     public function canUsePhone(string $phone): bool
-    {
-        $userPhone = UserPhone::where('phone', $phone)->first();
+{
+    return !UserPhone::where('phone', $phone)
+        ->where(function ($q) {
+            $q->where('is_active', true)
+              ->orWhereIn('telegram_user_id', function ($sub) {
+                  $sub->select('telegram_id')
+                      ->from('users')
+                      ->whereNotNull('telegram_id');
+              });
+        })
+        ->exists();
+}
 
-        if (!$userPhone) {
-            return true;
-        }
-
-        if ($userPhone->is_active) {
-            return false;
-        }
-
-        if ($userPhone->telegram_user_id) {
-            $exists = User::where('telegram_id', $userPhone->telegram_user_id)->exists();
-            if ($exists) {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
 
     public function destroy(Request $request, $id)

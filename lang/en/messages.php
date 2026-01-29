@@ -231,6 +231,8 @@ return [
   'group' => [
     'show_title' => 'Operation #:id',
     'show_subtitle' => 'Message text: :text',
+    'cannot_cancel' => "Operation #:id cannot be canceled. Only 'scheduled' or 'pending' operations can be canceled.",
+    'canceled' => "Operation #:id has been canceled.",
     ],
 
 

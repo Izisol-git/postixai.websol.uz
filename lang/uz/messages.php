@@ -240,6 +240,8 @@ return [
     'group' => [
         'show_title' => 'Operatsiya #:id',
         'show_subtitle' => 'Xabar matni: :text',
+        'cannot_cancel' => "Operatsiya #:id bekor qilib bo‘lmaydi. Faqat 'scheduled' yoki 'pending' holatidagi operatsiyalarni bekor qilish mumkin.",
+        'canceled' => "Operatsiya #:id bekor qilindi.",
     ],
     'validation_failed' => 'Tekshiruv muvaffaqiyatsiz',
 

@@ -230,7 +230,8 @@ return [
   'group' => [
     'show_title' => 'Операция #:id',
     'show_subtitle' => 'Текст сообщения: :text',
-    ''
+    'cannot_cancel' => "Операция #:id не может быть отменена. Только операции в статусе 'scheduled' или 'pending' могут быть отменены.",
+    'canceled' => "Операция #:id была отменена.",
   ],
   'validation_failed' => 'Проверка не пройдена',
 ];

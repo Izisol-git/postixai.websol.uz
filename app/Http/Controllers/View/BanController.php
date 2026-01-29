@@ -67,10 +67,20 @@ class BanController extends Controller
 
             // admin boshqa adminni ban qila olmaydi
             if ($isAdmin && $type === 'user') {
+
+                // Target user adminmi?
                 if (($model->role->name ?? null) === 'admin') {
-                    return $this->error(__('messages.ban.admin_to_admin_forbidden'), 403);
+
+                    // Agar hozirgi admin uni yaratmagan bo‘lsa — taqiqlanadi
+                    if ((int) $model->created_by !== (int) auth()->id()) {
+                        return $this->error(
+                            __('messages.ban.admin_to_admin_forbidden'),
+                            403
+                        );
+                    }
                 }
             }
+
 
             // superadmin emas → faqat o‘z departmenti
             if (!$isSuperadmin && $type !== 'department') {
