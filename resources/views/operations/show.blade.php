@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('show-sidebar','true')
 
 @section('title', __('messages.group.show_title', ['id' => $operation->id ?? '']))
 @section('show-back', true)

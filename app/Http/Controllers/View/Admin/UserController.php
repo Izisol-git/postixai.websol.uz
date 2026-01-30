@@ -5,6 +5,7 @@ namespace App\Http\Controllers\View\Admin;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserPhone;
+use App\Models\Department;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Jobs\TelegramAuthJob;
@@ -33,6 +34,7 @@ class UserController extends Controller
             'role',
             'department',
         ])->findOrFail($id);
+        
         if ($user->department_id !== $request->user()->department_id ) {
              abort(403, __('messages.users.access_denied'));   
         }
@@ -49,23 +51,61 @@ class UserController extends Controller
             ->pluck('messages')
             ->flatten()
             ->count();
-        $canBan = true;
+       $auth = $request->user();
 
-        if ($request->user()->id == $user->id) {
-            $canBan = false;
+$canBan = false;
+$canEditRole = false;
+$canEdit = false;
+
+if (($auth->role->name ?? null) === 'admin') {
+
+    if ((int)$auth->id === (int)$user->id) {
+        $canEdit = true;
+        $canBan = false;        
+        $canEditRole = false;   
+    } else {
+        $canEdit = true;        
+
+        if (($user->role->name ?? null) === 'admin') {
+            if ((int)$user->created_by === (int)$auth->id) {
+                $canEditRole = true;
+                $canBan = true;
+            } else {
+                $canEditRole = false;
+                $canBan = false;
+                $canEdit = false;
+
+            }
+        } else {
+            $canEditRole = true;
+            $canBan = true;
         }
-        if ($request->user()->role->name !== 'admin') {
-            $canBan = false;
-        }
+    }
+}
+
+        
         $roles = Role::whereNotIn('name', ['superadmin'])->get();
 
-
+        if($user->role->name === 'superadmin'){
+            return view('admin.users.superadmin', compact(
+            'user',
+            'department',
+            'operationsCount',
+            'messagesCount',
+            'canBan',
+            'canEditRole',
+            'canEdit',
+            'roles'
+        ));
+        }
         return view('admin.users.show', compact(
             'user',
             'department',
             'operationsCount',
             'messagesCount',
             'canBan',
+            'canEditRole',
+            'canEdit',
             'roles'
         ));
     }
@@ -80,6 +120,7 @@ class UserController extends Controller
             'email' => ['nullable', 'max:255', Rule::unique('users')->ignore($user->id)],
             'telegram_id' => ['nullable', 'string', 'max:255'],
             // password no confirm now:
+            'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'password' => ['nullable', 'min:6'],
             'avatar' => ['nullable', 'image', 'max:2048'],
             'remove_avatar' => ['nullable', 'boolean'],
@@ -114,7 +155,9 @@ class UserController extends Controller
             } catch (\Throwable $e) {
             }
         }
-
+        if (isset($data['role_id'])) {
+            $user->role_id = $data['role_id'];
+        }
         $user->save();
 
         // set active phone if requested
@@ -166,7 +209,7 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.show', $user->id)->with('success', __('messages.users.phone_deleted') ?? 'Phone deleted');
     }
-    public function canUsePhone(string $phone): bool
+        public function canUsePhone(string $phone): bool
 {
     return !UserPhone::where('phone', $phone)
         ->where(function ($q) {
@@ -179,7 +222,6 @@ class UserController extends Controller
         })
         ->exists();
 }
-
 
 
     public function destroy(Request $request, $id)
@@ -202,11 +244,14 @@ class UserController extends Controller
     public function sendPhone(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'phone' => 'required|string',
+            'phone' => ['required', 'string', 'regex:/^\+\d{6,16}$/'],
             'name' => 'required|string|max:255',
             'login' => 'required|string|max:255|unique:users,email',
             'password' => 'required|string|min:6',
             'role_id' => 'nullable|integer|exists:roles,id',
+        ],
+        [
+            'phone.regex' => __('messages.telegram.phone_invalid'),
         ]);
 
         if ($validator->fails()) {
@@ -238,13 +283,20 @@ class UserController extends Controller
                     'message' => __('messages.telegram.limit')
                 ], 403);
             }
+            if($request->user()->role->name==='superadmin'){
+                $department_id=$request->department;
+            }
+            else{
+                $department_id=$user->department->id;
+            }
+
             $newUser = User::create([
                 'name' => $request->input('name'),
                 'email' => $request->input('login'),
                 'password' => Hash::make($request->input('password')),
                 'role_id' => $request->input('role_id'),
                 'created_by' => $user->id,
-                'department_id' => $user->department_id,
+                'department_id' => $department_id,
             ]);
             $lockKey = "telegram_verify_lock_{$phone}_{$newUser->id}";
             $lockTtlSeconds = 60 * 10;
@@ -283,24 +335,9 @@ class UserController extends Controller
         if (!$user) {
             return redirect()->back()->with('error', __('messages.telegram.user_not_found'));
         }
-        $departmentId = $data['department_id'] ?? optional($request->user())->department_id ?? null;
+        $departmentId = $data['department_id'] ?? optional($user)->department_id ?? null;
 
-        // $existsInDepartment = UserPhone::where('phone', $data['phone'])
-        //     ->whereHas('user', function ($q) use ($departmentId) {
-        //         if ($departmentId === null) {
-        //             $q->whereNull('department_id');
-        //         } else {
-        //             $q->where('department_id', $departmentId);
-        //         }
-        //     })
-        //     ->exists();
 
-        // if ($existsInDepartment) {
-        //     return redirect()->back()->with('error', __('messages.telegram.user_exists'));
-        // }
-
-        // VerifyPhoneWithUserJob::dispatch($data['phone'], $user->id, $data['code'], null, $departmentId)
-        //     ->onQueue('telegram');
         TelegramVerifyJob::dispatch($data['phone'], $user->id, $data['code'], $departmentId, null)
             ->onQueue('telegram');
         $token = (string) Str::uuid();
@@ -308,16 +345,33 @@ class UserController extends Controller
             'message' => __('messages.telegram.started'),
             'type'    => 'success',
         ], now()->addMinutes(10));
-
+        if ($request->user()->role->name === 'superadmin') {
+            return redirect()->route('superadmin.departments.users', $departmentId)->with('success', __('messages.telegram.started'));
+        }
         return redirect()->route('departments.users', $departmentId)->with('success', __('messages.telegram.started'));
     }
-    public function newTelegramUsers()
-    {
-        $user = request()->user();
-        $department = $user->department;
-        $roles = Role::whereNotIn('name', ['superadmin'])->get();
-        return view('admin.telegram.telegram-login', compact('department', 'roles'));
+    public function newTelegramUsers(Request $request)
+{
+    $user = $request->user();
+    $roles = Role::whereNotIn('name', ['superadmin'])->get();
+
+    if ($request->has('department') && $user->role->name === 'superadmin') {
+        $department = Department::find($request->get('department'));
+
+        if (!$department) {
+            return redirect()->back()
+                ->withErrors(['department' => __('messages.admin.not_found')]);
+        }
+
+        return view('superadmin.telegram.telegram-login', compact('department', 'roles'));
     }
+
+    $department = $user->department;
+
+    return view('admin.telegram.telegram-login', compact('department', 'roles'));
+}
+
+
 
 
 

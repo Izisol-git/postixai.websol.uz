@@ -12,24 +12,28 @@ use App\Http\Controllers\View\DepartmentController;
 use App\Http\Controllers\View\Admin\UserController as AdminUserController;
 
 require __DIR__ . '/methods/web.php';
+    Route::get('departments/create', [DepartmentController::class, 'create'])->name('departments.create');
 
 
 Route::get('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/login', [AuthController::class, 'authenticate']);
 Route::middleware('auth')->group(function () {
-
-
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    Route::get('/departments/{id}', [DepartmentController::class, 'show'])->name('superadmin.departments.show');
 
+    Route::middleware('role:superadmin')->group(function () {
     Route::get('departments/create', [DepartmentController::class, 'create'])->name('departments.create');
-    Route::post('departments', [DepartmentController::class, 'store'])->name('departments.store');
-    Route::get('departments/{department}', [DepartmentController::class, 'show'])->name('departments.show');
-    Route::get('departments/{department}/edit', [DepartmentController::class, 'edit'])->name('departments.edit');
-    Route::put('departments/{department}', [DepartmentController::class, 'update'])->name('departments.update');
-    Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])->name('departments.destroy');
+      
+        Route::get('/departments/{id}/users', [DepartmentController::class, 'users'])->name('superadmin.departments.users');
+        Route::get('/departments/{id}/operations', [DepartmentController::class, 'operations'])->name('superadmin.departments.operations');
+        Route::post('departments', [DepartmentController::class, 'store'])->name('departments.store');
+        Route::get('departments/{department}', [DepartmentController::class, 'show'])->name('departments.show');
+        Route::get('departments/{department}/edit', [DepartmentController::class, 'edit'])->name('departments.edit');
+        Route::put('departments/{department}', [DepartmentController::class, 'update'])->name('departments.update');
+        Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])->name('departments.destroy');
+    });
 
-    Route::middleware('role:superadmin')->group(function () {});
     Route::middleware('role:superadmin,admin')->group(function () {
         Route::get('departments', [DepartmentController::class, 'index'])->name('departments.index');
 
@@ -46,14 +50,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/message-groups/{group}/cancel', [TelegramController::class, 'cancel'])->name('message-groups.cancel');
         Route::post('/telegram/logout', [TelegramController::class, 'logout'])->name('telegram.logout');
         Route::post('/message-groups/{group}/refresh', [TelegramController::class, 'refresh'])->name('message-groups.refresh');
+        Route::post('/admin/ban-unban', [BanController::class, 'banUnban'])->name('admin.ban-unban');
 
-        Route::post('/admin/ban-unban', [BanController::class, 'banUnban'])
-            ->name('admin.ban-unban');
-
-
-        
-        // Route::get('/profile', [UserController::class, 'profile'])->name('profile');
-        // Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
         Route::prefix('/admin')->group(function () {
             Route::get('/departments/{department}', [MainController::class, 'index'])->name('departments.dashboard');
             Route::get('/departments/{department}/users', [MainController::class, 'users'])->name('departments.users');

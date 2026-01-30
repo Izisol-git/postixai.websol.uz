@@ -451,13 +451,14 @@ class MainController extends Controller
         $user = $request->user();
         $department = $user->department;
 
-
         $operation = MessageGroup::with(['phone.user.avatar', 'messages'])
             ->where('id', $operationId)
             ->firstOrFail();
 
-
+        if($user->role->name !=='superadmin'){
         $this->permissonCheck($user, $operation->phone->user->department);
+
+        }
 
         // Status filter from request
         $status = $request->get('status', '');
@@ -479,7 +480,8 @@ class MainController extends Controller
             'operation' => $operation,
             'department' => $department,
             'peers' => $peers,
-            'currentStatus' => $status
+            'currentStatus' => $status,
+            'user'=>$user
         ]);
     }
 

@@ -66,20 +66,20 @@ class TelegramController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
     }
-    public function canUsePhone(string $phone): bool
+    public function canUsePhone(string $phone, ?int $currentUserId = null): bool
 {
-    return !UserPhone::where('phone', $phone)
-        ->where(function ($q) {
-            $q->where('is_active', true)
-              ->orWhereIn('telegram_user_id', function ($sub) {
-                  $sub->select('telegram_id')
-                      ->from('users')
-                      ->whereNotNull('telegram_id');
-              });
-        })
-        ->exists();
-}
+    $userPhone = UserPhone::where('phone', $phone)->first();
 
+    if (!$userPhone) {
+        return true;
+    }
+
+    if ($userPhone->is_active) {
+        return false;
+    }
+
+    return true;
+}
     public function sendCode(Request $request)
     {
         $request->validate([

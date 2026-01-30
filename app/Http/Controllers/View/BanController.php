@@ -36,6 +36,7 @@ class BanController extends Controller
                 'bannable_id'   => ['required', 'integer'],
                 'action'        => ['nullable', 'string'],
                 'starts_at'     => ['nullable', 'date'],
+                'until'         => ['nullable', 'date', 'after_or_equal:starts_at'],
             ]);
 
             $type   = strtolower(trim($data['bannable_type']));
@@ -109,27 +110,39 @@ class BanController extends Controller
                 }
             }
 
+            // until parse
+            $untilAt = null;
+            if (!empty($data['until'])) {
+                try {
+                    $untilAt = Carbon::parse($data['until']);
+                } catch (\Throwable $e) {
+                    return $this->error(__('messages.ban.invalid_date'), 422);
+                }
+            }
+
             /* ===== UNBAN ===== */
             if ($action === 'unban') {
                 if ($ban) {
-                    $ban->update(['active' => false, 'starts_at' => null]);
+                    $ban->update(['active' => false, 'starts_at' => null, 'until' => null]);
                 }
 
                 return $this->success([
                     'model' => $label,
                     'is_banned' => false,
                     'starts_at' => null,
+                    'until' => null,
                 ], __('messages.ban.unbanned', ['model' => $label]));
             }
 
             /* ===== TOGGLE OFF ===== */
             if ($ban && $ban->active) {
-                $ban->update(['active' => false, 'starts_at' => null]);
+                $ban->update(['active' => false, 'starts_at' => null, 'until' => null]);
 
                 return $this->success([
                     'model' => $label,
                     'is_banned' => false,
                     'starts_at' => null,
+                    'until' => null,
                 ], __('messages.ban.unbanned', ['model' => $label]));
             }
 
@@ -138,12 +151,14 @@ class BanController extends Controller
                 $ban = $model->ban()->updateOrCreate([], [
                     'starts_at' => $now,
                     'active'    => true,
+                    'until'     => $untilAt,
                 ]);
 
                 return $this->success([
                     'model' => $label,
                     'is_banned' => true,
                     'starts_at' => $ban->starts_at?->toDateTimeString(),
+                    'until' => $ban->until?->toDateTimeString(),
                 ], __('messages.ban.banned_now', ['model' => $label]));
             }
 
@@ -154,12 +169,14 @@ class BanController extends Controller
             $ban = $model->ban()->updateOrCreate([], [
                 'starts_at' => $start,
                 'active'    => $active,
+                'until'     => $untilAt,
             ]);
 
             return $this->success([
                 'model' => $label,
                 'is_banned' => $active,
                 'starts_at' => $ban->starts_at?->toDateTimeString(),
+                'until' => $ban->until?->toDateTimeString(),
             ], $active
                 ? __('messages.ban.banned_now', ['model' => $label])
                 : __('messages.ban.scheduled', ['model' => $label])

@@ -1,287 +1,379 @@
-<!DOCTYPE html>
-<html lang="uz">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>POSTIX AI - SuperAdmin</title>
+@extends('admin.layouts.app')
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+@section('title', __('messages.admin.dashboard'))
+@section('page-title', __('messages.admin.dashboard'))
+@section('show-back', false)
+
+@section('content')
+
+@php
+// Normalize chart data to arrays so JS receives stable structures
+$chartUsersArr = (is_object($chartUsers) && method_exists($chartUsers, 'toArray')) ? $chartUsers->toArray() : (array)($chartUsers ?? []);
+$chartPhonesArr = (is_object($chartPhones) && method_exists($chartPhones, 'toArray')) ? $chartPhones->toArray() : (array)($chartPhones ?? []);
+$chartGroupsArr = (is_object($chartGroups) && method_exists($chartGroups, 'toArray')) ? $chartGroups->toArray() : (array)($chartGroups ?? []);
+$chartMessagesArr = (is_object($chartMessages) && method_exists($chartMessages, 'toArray')) ? $chartMessages->toArray() : (array)($chartMessages ?? []);
+$colorsArr = $colors ?? [];
+@endphp
 
 <style>
-:root { --bg:#071427; --card:#0f2233; --muted:#9fb7dd; --text:#e7f4ff; --accent:#3b82f6; --yellow:#facc15; }
-body { background:var(--bg); color:var(--text); font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding:20px; }
-.container-max { max-width:1200px; margin:0 auto; }
+/* card accents + improved UI */
+.dept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 1rem;
+}
 
-/* Top */
-.topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
-.title { font-size:1.4rem; font-weight:700; color:var(--text); }
-.right-controls { display:flex; gap:10px; align-items:center; }
+/* reuse theme vars from layout where possible */
+.sa-card{
+    background:var(--card);
+    border-radius:16px;
+    padding:16px;
+    color:var(--text);
+    box-shadow:0 6px 18px rgba(2,6,23,0.55);
+    transition: transform .18s, box-shadow .18s;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--muted-2);
 
-/* Range buttons */
-.range-filters { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
-.range-btn { background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04); padding:6px 10px; border-radius:10px; cursor:pointer; }
-.range-btn.active { color:var(--text); background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border-color: rgba(255,255,255,0.06); }
+    /* NEW: keep content and footer consistent -> footer always bottom */
+    display: flex;
+    flex-direction: column;
+}
 
-/* Departments grid (top) */
-.grid-container { display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-top:6px; margin-bottom:18px; }
-.grid-card { background:transparent; border-radius:12px; padding:14px; border:2px solid var(--yellow); box-shadow:0 6px 20px rgba(0,0,0,0.6); }
-.dept-title { font-weight:800; color:var(--text); margin-bottom:8px; font-size:1.06rem; }
-.stat-row { display:flex; justify-content:space-between; padding:8px; border-radius:8px; margin-bottom:8px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); }
-.stat-label { color:var(--muted); font-size:0.9rem; }
-.stat-val { font-weight:800; }
+/* left accent to highlight contour */
+.sa-card::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: var(--accent);
+  border-radius: 0 8px 8px 0;
+  opacity: 0.98;
+}
 
-/* Batafsil link more visible */
-.details-link { display:inline-block; margin-top:6px; font-size:0.95rem; color:var(--yellow); font-weight:800; text-decoration:underline; }
+.sa-deleted{
+    border-color: #7f1d1d;
+    box-shadow: 0 8px 28px rgba(139, 16, 20, 0.18);
+}
+.sa-deleted::before{
+  background: linear-gradient(180deg,#dc2626,#9f1239);
+}
 
-/* Pies row */
-.pies-row { display:flex; gap:14px; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; margin-top:6px; }
-.pie-card { background:var(--card); border-radius:12px; padding:12px; width:calc(25% - 10px); min-width:180px; box-shadow:0 8px 30px rgba(0,0,0,0.6); text-align:center; }
-.pie-title { font-size:0.95rem; color:var(--muted); margin-bottom:8px; }
-.pie-canvas { width:110px; height:110px; margin:0 auto; display:block; }
-.pie-total { font-weight:700; margin-top:8px; font-size:1.05rem; color:var(--text); }
-.legend { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:8px; }
-.legend-item { display:flex; gap:8px; align-items:center; font-size:0.82rem; color:var(--muted); opacity:0.95; cursor:pointer; }
-.legend-dot { width:12px; height:12px; border-radius:3px; display:inline-block; }
+.sa-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 12px 36px rgba(2,6,23,0.65);
+}
 
-/* Create button right below top */
-.create-area { display:flex; justify-content:flex-end; margin-bottom:8px; }
-.btn-create { background:var(--accent); color:white; border-radius:10px; padding:8px 12px; border:none; font-weight:700; }
+.sa-muted{
+    color:var(--muted);
+}
 
-/* Responsive */
-@media (max-width:1000px) { .pie-card { width:calc(50% - 10px); } }
-@media (max-width:600px) { .pie-card { width:100%; } .grid-card { padding:12px; } }
+/* ensure stats area can grow and push footer down */
+.sa-card .card-stats {
+    flex: 1 1 auto; /* allow grow */
+}
+
+/* make footer (link) always at bottom of card */
+.sa-card .card-footer {
+    margin-top: 12px;
+}
+
+/* style for footer button placement */
+.sa-card .card-footer a.btn {
+    width: 100%;
+}
+
+/* Legend style */
+.legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:center;
+    margin-top:8px;
+}
+.legend-item{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    font-size:0.82rem;
+    color:var(--muted);
+    opacity:0.95;
+    cursor:pointer;
+}
+.legend-dot{
+    width:12px;
+    height:12px;
+    border-radius:3px;
+    display:inline-block;
+}
+
+/* Pies layout */
+.pies-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: start;
+  margin-top: 12px;
+}
+.pie-card {
+  text-align: center;
+  min-height: 180px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--muted-2);
+  background: var(--card);
+  box-shadow: 0 8px 24px rgba(2,6,23,0.48);
+  display: flex;
+  flex-direction: column;
+}
+
+/* make pie body flexible so totals/footer stay aligned */
+.pie-card .pie-body { flex: 1 1 auto; display:flex; flex-direction:column; justify-content:center; }
+
+/* canvas sizing */
+.pie-canvas {
+  width: 100% !important;
+  height: 140px !important;
+  max-width: 220px;
+  margin: 0 auto;
+  display: block;
+}
+
+/* responsive */
+@media (max-width:1000px) { .pie-canvas { height:160px !important; } }
+@media (max-width:600px) { .pie-canvas { height:200px !important; } }
 </style>
-</head>
-<body>
-<div class="container-max">
 
-  <!-- Top -->
-  <div class="topbar">
-    <div class="title">SuperAdmin</div>
-    <div class="right-controls">
-      <a href="{{ route('departments.create') ?? '#' }}" class="btn-create">Department yaratish</a>
+{{-- Filters --}}
+<form method="GET" class="mb-4">
+    <div class="d-flex flex-wrap gap-2">
+        @php
+        $ranges=[
+            'all'=>__('messages.admin.all_time'),
+            'year'=>__('messages.admin.all_year'),
+            'month'=>__('messages.admin.month'),
+            'week'=>__('messages.admin.week'),
+            'day'=>__('messages.admin.day')
+        ];
+        @endphp
 
-      <form action="{{ route('logout') }}" method="POST" style="margin:0;">
-        @csrf
-        <button class="range-btn" type="submit" style="background:#ef4444; color:white; border-radius:8px;">Logout</button>
-      </form>
-
-    </div>
-  </div>
-
-  <!-- Date filter -->
-  <form id="rangeForm" method="GET" action="{{ route('departments.index') }}">
-    <div class="range-filters">
-      @php $ranges = ['all' => 'All', 'year' => 'Year', 'month' => 'Month', 'week' => 'Week', 'day' => 'Day']; @endphp
-      @foreach($ranges as $k => $label)
-        <button name="range" value="{{ $k }}" type="submit" class="range-btn {{ $range === $k ? 'active' : '' }}">{{ $label }}</button>
-      @endforeach
-    </div>
-  </form>
-
-  <!-- Departments (TOP) -->
-  <div class="grid-container">
-    @foreach($deptStats as $d)
-      <div class="grid-card">
-        <div class="dept-title">{{ $d->name }}</div>
-
-        <div class="stat-row">
-          <div class="stat-label">Foydalanuvchilar</div>
-          <div class="stat-val">{{ $d->users_count }}</div>
-        </div>
-
-        <div class="stat-row">
-          <div class="stat-label">Aktiv telefonlar</div>
-          <div class="stat-val">{{ $d->active_phones_count }}</div>
-        </div>
-
-        <div class="stat-row" title="Operatsiya">
-          <div class="stat-label">Operatsiya</div>
-          <div class="stat-val">{{ $d->message_groups_count }}</div>
-        </div>
-
-        <div class="stat-row">
-          <div class="stat-label">Habarlar soni</div>
-          <div class="stat-val">{{ $d->telegram_messages_count }}</div>
-        </div>
-
-        <a href="{{ route('departments.show', $d->id) ?? '#' }}" class="details-link">Batafsil</a>
-      </div>
-    @endforeach
-  </div>
-
-  <!-- Create area placeholder (keeps spacing) -->
-  <div class="create-area"></div>
-
-  <!-- Pies (below departments) -->
-  <div class="pies-row">
-    {{-- Users --}}
-    <div class="pie-card">
-      <div class="pie-title">Foydalanuvchilar</div>
-      <canvas id="chartUsers" class="pie-canvas"></canvas>
-      <div class="pie-total" id="totalUsers">{{ $totals['users'] }}</div>
-      <div class="legend" id="legendUsers">
-        @php $i=0; @endphp
-        @foreach($chartUsers as $name => $val)
-          <div class="legend-item" data-index="{{ $i }}" data-name="{{ $name }}">
-            <span class="legend-dot" style="background: {{ $colors[$i % count($colors)] }}"></span>
-            <span>{{ $name }} ({{ $val }})</span>
-          </div>
-        @php $i++; @endphp
+        @foreach($ranges as $k=>$label)
+        <button name="range"
+                value="{{ $k }}"
+                class="btn btn-sm {{ ($range ?? 'all') == $k ? 'btn-primary':'btn-outline-secondary' }}">
+            {{ $label }}
+        </button>
         @endforeach
-      </div>
     </div>
+</form>
 
-    {{-- Phones --}}
-    <div class="pie-card">
-      <div class="pie-title">Aktiv telefonlar</div>
-      <canvas id="chartPhones" class="pie-canvas"></canvas>
-      <div class="pie-total" id="totalPhones">{{ $totals['phones'] }}</div>
-      <div class="legend" id="legendPhones">
-        @php $i=0; @endphp
-        @foreach($chartPhones as $name => $val)
-          <div class="legend-item" data-index="{{ $i }}" data-name="{{ $name }}">
-            <span class="legend-dot" style="background: {{ $colors[$i % count($colors)] }}"></span>
-            <span>{{ $name }} ({{ $val }})</span>
-          </div>
-        @php $i++; @endphp
-        @endforeach
-      </div>
-    </div>
-
-    {{-- Operatsiya --}}
-    <div class="pie-card">
-      <div class="pie-title">Operatsiya</div>
-      <canvas id="chartGroups" class="pie-canvas"></canvas>
-      <div class="pie-total" id="totalGroups">{{ $totals['groups'] }}</div>
-      <div class="legend" id="legendGroups">
-        @php $i=0; @endphp
-        @foreach($chartGroups as $name => $val)
-          <div class="legend-item" data-index="{{ $i }}" data-name="{{ $name }}">
-            <span class="legend-dot" style="background: {{ $colors[$i % count($colors)] }}"></span>
-            <span>{{ $name }} ({{ $val }})</span>
-          </div>
-        @php $i++; @endphp
-        @endforeach
-      </div>
-    </div>
-
-    {{-- Telegram messages --}}
-    <div class="pie-card">
-      <div class="pie-title">Umumiy Habarlar soni</div>
-      <canvas id="chartMessages" class="pie-canvas"></canvas>
-      <div class="pie-total" id="totalMessages">{{ $totals['messages'] }}</div>
-      <div class="legend" id="legendMessages">
-        @php $i=0; @endphp
-        @foreach($chartMessages as $name => $val)
-          <div class="legend-item" data-index="{{ $i }}" data-name="{{ $name }}">
-            <span class="legend-dot" style="background: {{ $colors[$i % count($colors)] }}"></span>
-            <span>{{ $name }} ({{ $val }})</span>
-          </div>
-        @php $i++; @endphp
-        @endforeach
-      </div>
-    </div>
-  </div>
-
+{{-- Create --}}
+<div class="d-flex justify-content-end mb-4">
+    <a href="{{ route('departments.create') }}"
+       class="btn btn-success fw-semibold shadow">
+        + {{ __('messages.admin.create_department') }}
+    </a>
 </div>
 
+{{-- Departments --}}
+<div class="dept-grid mb-4">
+@foreach($deptStats as $d)
+@php $deleted = !is_null($d->deleted_at); @endphp
+<div class="sa-card h-100 {{ $deleted ? 'sa-deleted' : '' }}">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <h6 class="fw-bold mb-0">{{ $d->name }}</h6>
+        @if($deleted)
+        <span class="badge bg-danger">{{ __('messages.admin.deleted') }}</span>
+        @endif
+    </div>
+
+    @if($deleted)
+    <div class="small text-danger mb-2">
+        🗑 {{ \Carbon\Carbon::parse($d->deleted_at)->format('d.m.Y H:i') }}
+    </div>
+    @endif
+
+    <div class="card-stats">
+        <div class="mb-2 sa-muted">{{ __('messages.admin.users') }}: <b>{{ $d->users_count }}</b></div>
+        <div class="mb-2 sa-muted">{{ __('messages.admin.phones') }}: <b>{{ $d->active_phones_count }}</b></div>
+        <div class="mb-2 sa-muted">{{ __('messages.admin.operations') }}: <b>{{ $d->message_groups_count }}</b></div>
+        <div class="mb-3 sa-muted">{{ __('messages.admin.messages_count') }}: <b>{{ $d->telegram_messages_count }}</b></div>
+    </div>
+
+    <div class="card-footer">
+        <a href="{{ route('departments.show',$d->id) }}" class="btn btn-sm btn-outline-warning">
+            {{ __('messages.admin.details') }}
+        </a>
+    </div>
+</div>
+@endforeach
+</div>
+
+{{-- Pies --}}
+@php
+$charts = [
+    ['id' => 'chartUsers', 'labels' => array_keys($chartUsersArr), 'values' => array_values($chartUsersArr), 'total' => $totals['users'] ?? array_sum(array_values($chartUsersArr)), 'title' => __('messages.admin.users')],
+    ['id' => 'chartPhones', 'labels' => array_keys($chartPhonesArr), 'values' => array_values($chartPhonesArr), 'total' => $totals['phones'] ?? array_sum(array_values($chartPhonesArr)), 'title' => __('messages.admin.phones')],
+    ['id' => 'chartGroups', 'labels' => array_keys($chartGroupsArr), 'values' => array_values($chartGroupsArr), 'total' => $totals['groups'] ?? array_sum(array_values($chartGroupsArr)), 'title' => __('messages.admin.operations')],
+    ['id' => 'chartMessages', 'labels' => array_keys($chartMessagesArr), 'values' => array_values($chartMessagesArr), 'total' => $totals['messages'] ?? array_sum(array_values($chartMessagesArr)), 'title' => __('messages.admin.messages_count')],
+];
+@endphp
+
+<div class="pies-row">
+    @foreach($charts as $c)
+    <div class="pie-card">
+        <div class="pie-title sa-muted mb-2">{{ $c['title'] }}</div>
+
+        <div class="pie-body">
+            <canvas id="{{ $c['id'] }}" class="pie-canvas"></canvas>
+            <div class="fw-bold mt-2" id="total{{ \Illuminate\Support\Str::studly(str_replace('chart','',$c['id'])) }}">{{ $c['total'] }}</div>
+        </div>
+
+        <div class="legend" id="legend{{ \Illuminate\Support\Str::studly(str_replace('chart','',$c['id'])) }}">
+            @php $i=0; @endphp
+            @foreach($c['labels'] as $name)
+            <div class="legend-item" data-index="{{ $i }}">
+                <span class="legend-dot" style="background: {{ $colorsArr[$i % max(1,count($colorsArr))] ?? '' }}"></span>
+                <span>{{ $name }} ({{ $c['values'][$i] ?? 0 }})</span>
+            </div>
+            @php $i++; @endphp
+            @endforeach
+        </div>
+    </div>
+    @endforeach
+</div>
+
+{{-- Pass arrays to JS in a robust way --}}
 <script>
-/* Backend data -> JS */
-const labels = {!! json_encode($chartUsers->keys()->toArray()) !!};
-const usersData = {!! json_encode($chartUsers->values()->toArray()) !!};
-const phonesData = {!! json_encode($chartPhones->values()->toArray()) !!};
-const groupsData = {!! json_encode($chartGroups->values()->toArray()) !!};
-const messagesData = {!! json_encode($chartMessages->values()->toArray()) !!};
-const colors = {!! json_encode($colors) !!};
+const chartsData = {
+    users: {
+        labels: {!! json_encode(array_values($charts[0]['labels'])) !!},
+        values: {!! json_encode(array_values($charts[0]['values'])) !!},
+    },
+    phones: {
+        labels: {!! json_encode(array_values($charts[1]['labels'])) !!},
+        values: {!! json_encode(array_values($charts[1]['values'])) !!},
+    },
+    groups: {
+        labels: {!! json_encode(array_values($charts[2]['labels'])) !!},
+        values: {!! json_encode(array_values($charts[2]['values'])) !!},
+    },
+    messages: {
+        labels: {!! json_encode(array_values($charts[3]['labels'])) !!},
+        values: {!! json_encode(array_values($charts[3]['values'])) !!},
+    }
+};
+let colors = {!! json_encode($colorsArr) !!} || [];
 
-/* Hidden set */
-let hidden = new Set();
+/* If colors not provided, generate pleasant HSL colors */
+function genColors(n){
+  return Array.from({length:n}, (_,i) => `hsl(${Math.round(i*360/n)} 70% 55%)`);
+}
+if(!colors || colors.length === 0){
+  const maxLabels = Math.max(
+    chartsData.users.labels.length,
+    chartsData.phones.labels.length,
+    chartsData.groups.labels.length,
+    chartsData.messages.labels.length
+  ) || 6;
+  colors = genColors(maxLabels);
+}
 
-function masked(arr) {
+const hidden = new Set();
+
+function masked(arr){
   return arr.map((v,i) => hidden.has(i) ? 0 : v);
 }
 
-const baseOpts = {
-  type: 'pie',
-  data: {},
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: {} }
+function sum(arr){ return arr.reduce((a,b)=>a+(Number(b)||0),0); }
+
+function buildDoughnut(ctx, labels, data){
+  return new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: masked(data),
+        backgroundColor: colors,
+        borderColor: 'rgba(255,255,255,0.04)',
+        borderWidth: 1
+      }]
     },
-    onClick(evt, items) {
-      if (!items.length) return;
-      const idx = items[0].index;
-      if (hidden.has(idx)) hidden.delete(idx); else hidden.add(idx);
-      updateAll();
-      // update legend opacity
-      document.querySelectorAll('.legend-item').forEach(el => {
-        const i = parseInt(el.dataset.index);
-        el.style.opacity = hidden.has(i) ? 0.35 : 1.0;
-      });
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '60%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context){
+              const val = context.raw ?? 0;
+              return `${context.label}: ${val}`;
+            }
+          }
+        }
+      }
     }
-  }
-};
-
-/* Create charts */
-const ctxU = document.getElementById('chartUsers').getContext('2d');
-const chartUsers = new Chart(ctxU, {
-  ...baseOpts,
-  data: { labels, datasets: [{ data: masked(usersData), backgroundColor: colors }] }
-});
-
-const ctxP = document.getElementById('chartPhones').getContext('2d');
-const chartPhones = new Chart(ctxP, {
-  ...baseOpts,
-  data: { labels, datasets: [{ data: masked(phonesData), backgroundColor: colors }] }
-});
-
-const ctxG = document.getElementById('chartGroups').getContext('2d');
-const chartGroups = new Chart(ctxG, {
-  ...baseOpts,
-  data: { labels, datasets: [{ data: masked(groupsData), backgroundColor: colors }] }
-});
-
-const ctxM = document.getElementById('chartMessages').getContext('2d');
-const chartMessages = new Chart(ctxM, {
-  ...baseOpts,
-  data: { labels, datasets: [{ data: masked(messagesData), backgroundColor: colors }] }
-});
-
-function sum(arr){ return arr.reduce((a,b)=>a+(b||0),0); }
-
-function updateAll(){
-  chartUsers.data.datasets[0].data = masked(usersData); chartUsers.update();
-  chartPhones.data.datasets[0].data = masked(phonesData); chartPhones.update();
-  chartGroups.data.datasets[0].data = masked(groupsData); chartGroups.update();
-  chartMessages.data.datasets[0].data = masked(messagesData); chartMessages.update();
-
-  document.getElementById('totalUsers').innerText = sum(masked(usersData));
-  document.getElementById('totalPhones').innerText = sum(masked(phonesData));
-  document.getElementById('totalGroups').innerText = sum(masked(groupsData));
-  document.getElementById('totalMessages').innerText = sum(masked(messagesData));
+  });
 }
 
-/* Legend click toggles too */
-document.querySelectorAll('.legend-item').forEach(el=>{
-  el.addEventListener('click', () => {
-    const idx = parseInt(el.dataset.index);
-    if (hidden.has(idx)) hidden.delete(idx); else hidden.add(idx);
-    updateAll();
-    el.style.opacity = hidden.has(idx) ? 0.35 : 1.0;
+const chartObjs = {};
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Create charts if canvases exist
+  const elU = document.getElementById('chartUsers');
+  if(elU) chartObjs.users = buildDoughnut(elU.getContext('2d'), chartsData.users.labels, chartsData.users.values);
+
+  const elP = document.getElementById('chartPhones');
+  if(elP) chartObjs.phones = buildDoughnut(elP.getContext('2d'), chartsData.phones.labels, chartsData.phones.values);
+
+  const elG = document.getElementById('chartGroups');
+  if(elG) chartObjs.groups = buildDoughnut(elG.getContext('2d'), chartsData.groups.labels, chartsData.groups.values);
+
+  const elM = document.getElementById('chartMessages');
+  if(elM) chartObjs.messages = buildDoughnut(elM.getContext('2d'), chartsData.messages.labels, chartsData.messages.values);
+
+  function updateAll(){
+    if(chartObjs.users) { chartObjs.users.data.datasets[0].data = masked(chartsData.users.values); chartObjs.users.update(); }
+    if(chartObjs.phones) { chartObjs.phones.data.datasets[0].data = masked(chartsData.phones.values); chartObjs.phones.update(); }
+    if(chartObjs.groups) { chartObjs.groups.data.datasets[0].data = masked(chartsData.groups.values); chartObjs.groups.update(); }
+    if(chartObjs.messages) { chartObjs.messages.data.datasets[0].data = masked(chartsData.messages.values); chartObjs.messages.update(); }
+
+    // update totals
+    const elU = document.getElementById('totalUsers');
+    const elP = document.getElementById('totalPhones');
+    const elG = document.getElementById('totalGroups');
+    const elM = document.getElementById('totalMessages');
+    if(elU) elU.innerText = sum(masked(chartsData.users.values));
+    if(elP) elP.innerText = sum(masked(chartsData.phones.values));
+    if(elG) elG.innerText = sum(masked(chartsData.groups.values));
+    if(elM) elM.innerText = sum(masked(chartsData.messages.values));
+  }
+
+  // Legend item handlers (scoped per pie-card)
+  document.querySelectorAll('.pie-card').forEach(card => {
+    const legendItems = card.querySelectorAll('.legend-item');
+    legendItems.forEach(el => {
+      el.addEventListener('click', () => {
+        const i = Number(el.dataset.index);
+        if(hidden.has(i)) hidden.delete(i); else hidden.add(i);
+        el.style.opacity = hidden.has(i) ? 0.35 : 1.0;
+        updateAll();
+      });
+    });
   });
-});
 
-/* fill legend dots colors */
-document.querySelectorAll('.legend-dot').forEach((el, i)=>{
-  el.style.background = colors[i % colors.length];
-});
+  // Fill legend colors
+  document.querySelectorAll('.legend-dot').forEach((el,i)=>{
+    el.style.background = colors[i % colors.length];
+  });
 
-/* initial */
-updateAll();
+  updateAll();
+});
 </script>
-</body>
-</html>
+
+@endsection

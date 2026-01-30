@@ -419,78 +419,99 @@
 
 
         .sidebar {
-    width: 260px;
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-    padding: 20px;
-    box-sizing: border-box;
-    border-right: 1px solid var(--muted-2);
-    background: linear-gradient(180deg, var(--card), rgba(0,0,0,0.05));
-    z-index: 1000;
-    transition: transform .28s ease;
-}
+            width: 260px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+            border-right: 1px solid var(--muted-2);
+            background: linear-gradient(180deg, var(--card), rgba(0, 0, 0, 0.05));
+            z-index: 1000;
+            transition: transform .28s ease;
+        }
 
-/* Topbar z-index biroz pastroq bo'lsin, shunda mobilda sidebar ustida turishi mumkin */
-.topbar { z-index: 1100; }
+        /* Topbar z-index biroz pastroq bo'lsin, shunda mobilda sidebar ustida turishi mumkin */
+        .topbar {
+            z-index: 1100;
+        }
 
-/* --- Mobile / Tablet: sidebar tepaga chiqsin (gorizontal nav) --- */
-@media (max-width: 900px) {
-    /* Layout: sidebar va main ustma-ust bo'ladi */
-    .layout { flex-direction: column; }
+        /* --- Mobile / Tablet: sidebar tepaga chiqsin (gorizontal nav) --- */
+        @media (max-width: 900px) {
 
-    /* Desktop yon sidebarni yashiramiz (agar oldingi kodda d-none d-md-block bo'lsa) */
-    .sidebar {
-        width: 100%;
-        height: auto;
-        position: sticky;    /* tepaga yopishadi */
-        top: 0;
-        left: 0;
-        display: flex;       /* gorizontal nav */
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;   /* mobilga mos padding */
-        overflow-x: auto;    /* gorizontal scroll */
-        white-space: nowrap;  /* linklar bir qatorda qoladi */
-        border-right: none;  /* yon border bekor qilish */
-        border-bottom: 1px solid var(--muted-2); /* pastki chiziq */
-        background: linear-gradient(180deg, var(--card), rgba(0,0,0,0.03));
-        -webkit-overflow-scrolling: touch;
-        z-index: 1200; /* topda tursin */
-    }
+            /* Layout: sidebar va main ustma-ust bo'ladi */
+            .layout {
+                flex-direction: column;
+            }
 
-    /* nav-linklarni inline ko'rinishga o'tkazish */
-    .sidebar .nav {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-    }
+            /* Desktop yon sidebarni yashiramiz (agar oldingi kodda d-none d-md-block bo'lsa) */
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: sticky;
+                /* tepaga yopishadi */
+                top: 0;
+                left: 0;
+                display: flex;
+                /* gorizontal nav */
+                flex-direction: row;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                /* mobilga mos padding */
+                overflow-x: auto;
+                /* gorizontal scroll */
+                white-space: nowrap;
+                /* linklar bir qatorda qoladi */
+                border-right: none;
+                /* yon border bekor qilish */
+                border-bottom: 1px solid var(--muted-2);
+                /* pastki chiziq */
+                background: linear-gradient(180deg, var(--card), rgba(0, 0, 0, 0.03));
+                -webkit-overflow-scrolling: touch;
+                z-index: 1200;
+                /* topda tursin */
+            }
 
-    .sidebar .nav-link {
-        display: inline-flex;
-        align-items: center;
-        padding: 8px 12px;
-        border-radius: 8px;
-        margin-bottom: 0; /* mobilda qator orasida bo'lmasin */
-        white-space: nowrap;
-    }
+            /* nav-linklarni inline ko'rinishga o'tkazish */
+            .sidebar .nav {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
 
-    .sidebar .brand {
-        /* agar brandni saqlamoqchi bo'lsangiz kichikroq qiling yoki yashiring */
-        margin-right: 8px;
-        font-size: 0.95rem;
-        flex: 0 0 auto;
-    }
+            .sidebar .nav-link {
+                display: inline-flex;
+                align-items: center;
+                padding: 8px 12px;
+                border-radius: 8px;
+                margin-bottom: 0;
+                /* mobilda qator orasida bo'lmasin */
+                white-space: nowrap;
+            }
 
-    /* Agar siz hamburger ishlatishni xohlamasangiz uni yashiramiz */
-    .hamburger { display: none !important; }
+            .sidebar .brand {
+                /* agar brandni saqlamoqchi bo'lsangiz kichikroq qiling yoki yashiring */
+                margin-right: 8px;
+                font-size: 0.95rem;
+                flex: 0 0 auto;
+            }
 
-    /* Topbar ostida joylashishini ta'minlaymiz: topbar sticky bo'lsa, pastga margin qo'yish mumkin */
-    .topbar { position: sticky; top: 48px; } /* agar sidebar balandligi taxminan 48px bo'lsa */
-    /* Eslatma: agar sidebar balandligi dinamik bo'lsa top qiymatini sozlang yoki topbar sticky'ni o'chiring */
-}
+            /* Agar siz hamburger ishlatishni xohlamasangiz uni yashiramiz */
+            .hamburger {
+                display: none !important;
+            }
+
+            /* Topbar ostida joylashishini ta'minlaymiz: topbar sticky bo'lsa, pastga margin qo'yish mumkin */
+            .topbar {
+                position: sticky;
+                top: 48px;
+            }
+
+            /* agar sidebar balandligi taxminan 48px bo'lsa */
+            /* Eslatma: agar sidebar balandligi dinamik bo'lsa top qiymatini sozlang yoki topbar sticky'ni o'chiring */
+        }
     </style>
 
 
@@ -572,32 +593,35 @@
 
         <!-- SIDEBAR -->
         <aside class="sidebar">
-    <!-- Brand / logo -->
-    <div class="brand">{{ config('app.name', 'Postix AI') }}</div>
+            <!-- Brand / logo -->
+            <div class="brand">{{ config('app.name', 'Postix AI') }}</div>
 
-    <!-- Navigation links -->
-    <nav class="nav flex-column mb-3">
-        <a href="{{ route('departments.dashboard', $department) }}"
-           class="nav-link {{ request()->routeIs('departments.dashboard') ? 'active' : '' }}">
-            🏠 {{ __('messages.admin.dashboard') }}
-        </a>
+            <!-- Navigation links -->
+            @if ($department)
+                <nav class="nav flex-column mb-3">
+                    <a href="{{ route('departments.dashboard', $department->id) }}"
+                        class="nav-link {{ request()->routeIs('departments.dashboard') ? 'active' : '' }}">
+                        🏠 {{ __('messages.admin.dashboard') }}
+                    </a>
 
-        <a href="{{ route('departments.users', $department) }}"
-           class="nav-link {{ request()->routeIs('departments.users') ? 'active' : '' }}">
-            👤 {{ __('messages.admin.users') }}
-        </a>
+                    <a href="{{ route('departments.users', $department->id) }}"
+                        class="nav-link {{ request()->routeIs('departments.users') ? 'active' : '' }}">
+                        👤 {{ __('messages.admin.users') }}
+                    </a>
 
-        <a href="{{ route('departments.operations', $department) }}"
-           class="nav-link {{ request()->routeIs('departments.operations') ? 'active' : '' }}">
-            📊 {{ __('messages.admin.operations') }}
-        </a>
+                    <a href="{{ route('departments.operations', $department->id) }}"
+                        class="nav-link {{ request()->routeIs('departments.operations') ? 'active' : '' }}">
+                        📊 {{ __('messages.admin.operations') }}
+                    </a>
 
-        {{-- Agar kerak bo'lsa sozlamalar linki --}}
-        {{-- <a href="{{ route('settings.index') ?? '#' }}" class="nav-link @if (request()->routeIs('settings.*')) active @endif">
+                    {{-- Agar kerak bo'lsa sozlamalar linki --}}
+                    {{-- <a href="{{ route('settings.index') ?? '#' }}" class="nav-link @if (request()->routeIs('settings.*')) active @endif">
             ⚙️ {{ __('layout.menu.settings') }}
         </a> --}}
-    </nav>
-</aside>
+                </nav>
+            @endif
+
+        </aside>
 
 
         <!-- MAIN CONTENT -->
@@ -764,9 +788,9 @@
 
     <script>
         /*
-                                  Theme toggle: stores 'light'|'dark' in localStorage under key 'app_theme'
-                                  Usage: body.classList.toggle('light', true) -> light theme
-                                */
+                                      Theme toggle: stores 'light'|'dark' in localStorage under key 'app_theme'
+                                      Usage: body.classList.toggle('light', true) -> light theme
+                                    */
         (function() {
             const THEME_KEY = 'app_theme';
             const body = document.body;

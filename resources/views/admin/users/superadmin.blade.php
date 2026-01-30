@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('admin.layouts.app')
 @section('show-back', true)
 @section('title', $user->name . ' — ' . __('messages.users.title'))
 @section('page-title', $user->name)

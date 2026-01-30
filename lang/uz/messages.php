@@ -4,12 +4,13 @@ return [
     'admin' => [
         'dashboard' => 'Dashboard',
         'main_dashboard' => 'Asosiy Dashboard',
-
+        'navigation' => 'Navigatsiya',
         'users' => 'Foydalanuvchilar',
         'phones' => 'Telefonlar',
         'operations' => 'Operatsiyalar',
         'messages_count' => 'Yuborilgan xabarlar',
-
+        'create_department' => 'Bo‘lim yaratish',
+        'deleted' => 'Oʻchirildi',
         'last_active_users' => 'Oxirgi faol foydalanuvchilar',
         'no_recent_activity' => "So‘nggi faollik topilmadi",
         'messages_per_day' => "Kunlik yuborilgan xabarlar",
@@ -17,9 +18,11 @@ return [
         'all_year' => "Butun yil",
         'all_time' => "Butun vaqt",
         'month' => "Oy",
+        'week' => "Hafta",
         'day' => "Kun",
         'grouped_bar' => "Habarlar boylab aktiv telefonlar",
         'active' => "Faol",
+        'edit' => "Tahrirlash",
 
         // --- Qo'shilgan yangi kalitlar (Users page va confirm va boshqalar)
         'add_user' => 'Foydalanuvchi qo‘shish',
@@ -54,11 +57,12 @@ return [
         'year' => 'Yil',
     ],
 
-    // layout may be present in separate file; include if you want:
     'layout' => [
         'profile' => 'Profil',
         'settings' => 'Sozlamalar',
         'logout' => 'Chiqish',
+        'dashboard' => 'Dashboard',
+        'departments' => 'Bo‘limlar',
         'page_title' => 'Admin Panel',
 
     ],
@@ -166,6 +170,7 @@ return [
         'operations_count' => 'Operatsiyalar soni',
         'messages_count' => 'Xabarlar soni',
         'search' => 'Qidirish',
+        'read_only' => 'Faqat o‘qish',
     ],
 
 
@@ -173,21 +178,40 @@ return [
 
 
     'ban' => [
+
+        // Errors
         'invalid_type' => 'Noto‘g‘ri ban turi.',
         'not_found' => ':model topilmadi.',
         'admin_department_forbidden' => 'Admin bo‘limni ban qila olmaydi.',
         'admin_to_admin_forbidden' => 'Admin boshqa adminni ban qila olmaydi.',
         'no_permission' => 'Bu amal uchun ruxsat yo‘q.',
         'invalid_date' => 'Sana formati noto‘g‘ri.',
-        'unbanned' => ':model uchun ban olib tashlandi.',
-        'banned_now' => ':model darhol ban qilindi.',
-        'scheduled' => ':model uchun ban rejalashtirildi.',
         'internal_error' => 'Serverda ichki xatolik yuz berdi.',
+
+        // Success
+        'unbanned' => ':model uchun ban olib tashlandi.',
+        'banned_now' => 'Darhol ban qilish.',
+        'scheduled' => 'Rejalashtirilgan',
+
+        // Status
+        'banned_since' => 'Ban boshlangan sana',
+        'until' => 'Tugash vaqti',
+        'now' => 'Hozir',
+
+        // UI
+        'date_optional' => 'Sana tanlash ixtiyoriy.',
+        'sure?' => 'Siz haqiqatan ham bandan chiqarishni xohlaysizmi?',
+        'confirm' => 'Bandan chiqarishni tasdiqlash',
+
+        // Buttons
+        'unban' => '🔓 Unban',
+        'ban' => '🛑 Ban',
     ],
 
 
-    'telegram' => [
 
+    'telegram' => [
+        'phone_invalid' => 'Telefon raqam formati noto‘g‘ri. + bilan boshlanishi va 6-16 raqamdan iborat bo‘lishi kerak.',
         'login' => 'Telegram bilan bog‘lash',
         'phone_label' => 'Telefon raqami',
         'phone_placeholder' => 'Foydalanuvchi telefon raqamini kiriting',
@@ -244,5 +268,22 @@ return [
         'canceled' => "Operatsiya #:id bekor qilindi.",
     ],
     'validation_failed' => 'Tekshiruv muvaffaqiyatsiz',
+
+    'departments' => [
+        'edit' => 'Department tahrirlash',
+        'edit_title' => 'Department tahrirlash',
+
+        'create' => 'Department yaratish',
+        'create_title' => 'Department yaratish',
+
+        'name' => 'Nomi',
+        'placeholder' => 'Department nomi',
+        'hint' => 'Masalan: Marketing, Sales, Support',
+    ],
+
+    'common' => [
+        'save' => 'Saqlash',
+        'cancel' => 'Bekor qilish',
+    ],
 
 ];

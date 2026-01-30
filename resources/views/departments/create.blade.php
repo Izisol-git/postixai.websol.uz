@@ -1,188 +1,84 @@
-<!DOCTYPE html>
-<html lang="uz">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Department yaratish — Postix Ai</title>
+@extends('admin.layouts.app')
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+@section('title', __('messages.departments.create_title', ['default' => 'Department yaratish']))
+@section('page-title', __('messages.departments.create'))
 
-<style>
-:root { 
-    --bg:#071427; 
-    --card:#0f2233; 
-    --muted:#9fb7dd; 
-    --text:#e7f4ff; 
-    --accent:#3b82f6; 
-    --yellow:#facc15; 
-}
+@section('show-back', true)
+@section('show-sidebar', true)
 
-body { 
-    background:var(--bg); 
-    color:var(--text); 
-    font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; 
-    padding:20px; 
-}
+@section('content')
 
-.container { 
-    max-width:900px; 
-    margin:0 auto; 
-}
+<div class="row justify-content-center">
+    <div class="col-xl-7 col-lg-8 col-md-10">
 
-/* Topbar */
-.topbar { 
-    display:flex; 
-    justify-content:space-between; 
-    align-items:center; 
-    margin-bottom:18px; 
-    gap:12px; 
-}
+        <div class="card p-4 shadow-sm">
 
-.title { 
-    font-size:1.25rem; 
-    font-weight:700; 
-    color:var(--text); 
-    display:flex; 
-    gap:8px; 
-    align-items:center; 
-}
+            <h5 class="mb-3 text-warning fw-bold">
+                {{ __('messages.departments.create') ?? 'Department yaratish' }}
+            </h5>
 
-.breadcrumbs { 
-    color:var(--muted); 
-    font-size:0.95rem; 
-}
+            {{-- Success --}}
+            @if (session('success'))
+                <div class="alert alert-success">
+                    {{ session('success') }}
+                </div>
+            @endif
 
-.right-controls { 
-    display:flex; 
-    gap:10px; 
-    align-items:center; 
-}
+            {{-- Errors --}}
+            @if ($errors->any())
+                <div class="alert alert-danger">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
-/* Card */
-.card { 
-    background:var(--card); 
-    border-radius:12px; 
-    padding:18px; 
-    border:1px solid rgba(255,255,255,0.03); 
-    box-shadow:0 8px 30px rgba(0,0,0,0.6); 
-}
+            <form action="{{ route('departments.store') }}" method="POST" class="mt-3">
+                @csrf
 
-.card h3 { 
-    color: var(--yellow); 
-    margin-top:0; 
-    margin-bottom:6px; 
-}
+                {{-- Name --}}
+                <div class="mb-3">
+                    <label class="form-label">
+                        {{ __('messages.departments.name') ?? 'Nomi' }}
+                    </label>
 
-/* Form */
-.form-label { 
-    color:var(--muted); 
-}
+                    <input
+                        type="text"
+                        name="name"
+                        class="form-control"
+                        value="{{ old('name') }}"
+                        placeholder="{{ __('messages.departments.placeholder') ?? 'Department nomi' }}"
+                        required
+                    >
 
-.form-control { 
-    background: #ffffff; 
-    color: var(--text); 
-    border-radius:10px; 
-    border:1px solid rgba(255,255,255,0.04); 
-    height:46px; 
-    padding:10px; 
-}
+                    <div class="muted-small mt-1">
+                        {{ __('messages.departments.hint') ?? 'Masalan: Marketing, Sales, Support' }}
+                    </div>
+                </div>
 
-.btn-save { 
-    background:var(--accent); 
-    color:white; 
-    border-radius:10px; 
-    padding:8px 14px; 
-    border:none; 
-    font-weight:700; 
-}
+                {{-- Buttons --}}
+                <div class="d-flex justify-content-end gap-2 mt-4">
 
-.btn-cancel { 
-    background:transparent; 
-    color:var(--muted); 
-    border:1px solid rgba(255,255,255,0.04); 
-    padding:7px 12px; 
-    border-radius:10px; 
-}
+                    <a href="{{ route('departments.index') }}"
+                       class="btn btn-outline-secondary btn-sm">
 
-/* Logout button */
-.logout-btn {
-    background-color: #ef4444; /* qizil fon */
-    color: white;              /* matn oq */
-    border-radius: 8px;
-    border: none;
-    padding: 6px 12px;
-    cursor: pointer;
-}
+                        {{ __('messages.common.cancel') ?? 'Bekor qilish' }}
+                    </a>
 
-/* Alerts */
-.alert { 
-    border-radius:10px; 
-}
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">
 
-/* Helper */
-.small-note { 
-    color:var(--muted); 
-    font-size:0.9rem; 
-    margin-top:8px; 
-}
-</style>
-</head>
-<body>
-<div class="container">
+                        {{ __('messages.common.save') ?? 'Saqlash' }}
+                    </button>
 
-  <!-- Top bar -->
-  <div class="topbar">
-    <div class="title">
-        <span style="font-weight:800; color:var(--yellow);">POSTIX AI</span>
-        <span class="breadcrumbs"> 
-            <a href="{{ route('departments.index') }}" style="color:var(--muted); text-decoration:none;">Departments</a> → Yaratish
-        </span>
+                </div>
+
+            </form>
+
+        </div>
+
     </div>
-
-    <div class="right-controls">
-        <form action="{{ route('logout') }}" method="POST" style="margin:0;">
-            @csrf
-            <button type="submit" class="logout-btn">Logout</button>
-        </form>
-    </div>
-  </div>
-
-  <!-- Card -->
-  <div class="card">
-    <h3>Department yaratish</h3>
-
-    <!-- Success message -->
-    @if (session('success'))
-      <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-
-    <!-- Error messages -->
-    @if ($errors->any())
-      <div class="alert alert-danger">
-        <ul class="mb-0">
-          @foreach ($errors->all() as $error)
-            <li>{{ $error }}</li>
-          @endforeach
-        </ul>
-      </div>
-    @endif
-
-    <!-- Department form -->
-    <form action="{{ route('departments.store') }}" method="POST" class="mt-3">
-      @csrf
-      <div class="mb-3">
-        <label class="form-label">Nomi</label>
-        <input type="text" name="name" value="{{ old('name') }}" class="form-control" placeholder="Department nomi" required>
-        <div class="small-note">Masalan: Marketing, Sales, Support — qisqa va tushunarli nom kiriting.</div>
-      </div>
-
-      <div class="d-flex gap-2 justify-content-end mt-4">
-        <a href="{{ route('departments.index') }}" class="btn-cancel">Bekor qilish</a>
-        <button type="submit" class="btn-save">Saqlash</button>
-      </div>
-    </form>
-  </div>
-
 </div>
-</body>
-</html>
+
+@endsection

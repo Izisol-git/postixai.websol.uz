@@ -1,15 +1,17 @@
 <?php
 
 return [
+  'ban' => 'Ban',
+  'unban' => 'Unban',
   'admin' => [
     'dashboard' => 'Dashboard',
     'main_dashboard' => 'Main dashboard',
-
+    'navigation' => 'Navigation',
     'users' => 'Users',
     'phones' => 'Phones',
     'operations' => 'Operations',
     'messages_count' => 'Messages',
-
+    'create_department' => 'Create Department',
     'last_active_users' => 'Last active users',
     'no_recent_activity' => "No recent activity",
     'messages_per_day' => "Messages per day",
@@ -17,10 +19,11 @@ return [
     'all_year' => "All year",
     'all_time' => "All time",
     'month' => "Month",
+    'week' => 'Week',
     'day' => "Day",
     'grouped_bar' => "Messages by active phones",
     'active' => "Active",
-
+    'deleted' => 'Deleted',
     'add_user' => 'Add user',
     'search_users' => 'Search users...',
     'toggle' => 'Toggle',
@@ -30,7 +33,7 @@ return [
 
     'add_phone' => 'Add phone',
     'details' => 'Details',
-
+    'edit' => 'Edit',
     'ban' => 'Ban',
     'unban' => 'Unban',
 
@@ -57,6 +60,8 @@ return [
     'profile' => 'Profile',
     'settings' => 'Settings',
     'logout' => 'Logout',
+    'dashboard' => 'Dashboard',
+    'departments' => 'Departments',
     'langs' => ['uz' => 'Uz', 'ru' => 'Ru', 'en' => 'En', 'ko' => 'Ko', 'zh' => 'Zh'],
   ],
   'operations' => [
@@ -95,7 +100,7 @@ return [
     'continue' => 'Continue',
     'show' => 'Show',
   ],
-  
+
   'login' => [
     'title' => 'Login',
     'welcome' => 'Welcome',
@@ -163,21 +168,40 @@ return [
     'operations_count' => 'Operations count',
     'messages_count' => 'Messages count',
     'search' => 'Search',
+    'read_only' => 'Read-only',
   ],
   'ban' => [
+
+    // Errors
     'invalid_type' => 'Invalid ban type.',
     'not_found' => ':model not found.',
     'admin_department_forbidden' => 'Admin cannot ban a department.',
     'admin_to_admin_forbidden' => 'Admin cannot ban another admin.',
-    'no_permission' => 'You do not have permission to perform this action.',
+    'no_permission' => 'You do not have permission.',
     'invalid_date' => 'Invalid date format.',
+    'internal_error' => 'Internal server error.',
+
+    // Success
     'unbanned' => 'Ban removed for :model.',
-    'banned_now' => ':model has been banned immediately.',
-    'scheduled' => 'Ban for :model has been scheduled.',
-    'internal_error' => 'An internal server error occurred.',
+    'banned_now' => 'Bann immediately.',
+    'scheduled' => 'Schedule',
+
+    // Status
+    'banned_since' => 'Banned since',
+    'until' => 'Until',
+    'now' => 'Now',
+
+    // UI
+    'date_optional' => 'Date selection is optional.',
+    'sure?' => 'Are you sure you want to unban?',
+    'confirm' => 'Confirm unban',
+
+    // Buttons
+    'unban' => '🔓 Unban',
+    'ban' => '🛑 Ban',
   ],
   'telegram' => [
-
+'phone_invalid' => 'The phone number format is invalid. It must start with + and contain 6-16 digits.',
     'login' => 'Connect Telegram',
     'phone_label' => 'Phone number',
     'phone_placeholder' => 'Enter the user’s phone number',
@@ -226,14 +250,33 @@ return [
     'forbidden_sub' => 'You do not have permission to access this page.',
     'back' => 'Back',
     'home' => 'Home',
-        
+
   ],
   'group' => [
     'show_title' => 'Operation #:id',
     'show_subtitle' => 'Message text: :text',
     'cannot_cancel' => "Operation #:id cannot be canceled. Only 'scheduled' or 'pending' operations can be canceled.",
     'canceled' => "Operation #:id has been canceled.",
-    ],
+  ],
+  'departments' => [
+    'edit' => 'Edit Department',
+    'edit_title' => 'Edit Department',
+
+    'create' => 'Create Department',
+    'create_title' => 'Create Department',
+
+    'name' => 'Name',
+    'placeholder' => 'Department name',
+    'hint' => 'For example: Marketing, Sales, Support',
+    'delete_confirm' => 'Are you sure you want to delete this department? This action cannot be undone.',
+],
+
+'common' => [
+    'save' => 'Save',
+    'cancel' => 'Cancel',
+],
+
+
 
 
 ];
